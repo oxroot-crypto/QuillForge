@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Rust build
+src-tauri/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Generated icons (source is icon.svg)
+src-tauri/icons/icon.ico
+src-tauri/icons/icon.icns
+src-tauri/icons/icon.png
+src-tauri/icons/*.png
+src-tauri/icons/AppIcon-*.png
+src-tauri/icons/Square*.png
+src-tauri/icons/StoreLogo.png
+src-tauri/icons/mipmap-*/
+
+# Logs
+*.log
