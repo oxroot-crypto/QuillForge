@@ -364,9 +364,11 @@ fn get_default_system_prompt(action: &str) -> String {
     match action {
         "review" => "你是一位资深的网文编辑，擅长审阅和点评小说。请对以下文本进行审阅，从文法、节奏、人物塑造、情节逻辑等方面给出具体建议。直接给出审阅意见，不要客套话。".into(),
         "idea" => "你是一位创意无限的网文构思助手。根据用户提供的情节节点或故事设定，给出3-5个有创意的情节发展方向或写作思路。每个思路简洁有力，100字以内。".into(),
-        "continue" => "你是一位文笔流畅的网文写手。请根据上文语境和风格，自然地续写下文。保持人称、时态、文风与上文一致，不要突然转换视角。续写长度适中，在原文基础上推进情节。".into(),
+        "continue" => "你是一位文笔流畅的网文写手。请根据上文语境和风格，自然地续写下文。保持人称、时态、文风与上文一致，不要突然转换视角。续写长度适中，在原文基础上推进情节。\n\n严格禁止：\n- 不要输出任何标题、章节号、前缀标记\n- 不要写「续写」「接上文」等引导语\n- 不要写作者注、旁白、元评论\n- 直接从正文第一句开始，仿佛原文就是你自己写的".into(),
         "gen_setting" => "你是一位世界观架构师。根据用户提供的故事方向或已有设定，生成完整的世界观设定。包括但不限于：世界背景、力量体系、种族设定、历史事件、地理环境等。请用连贯的段落直接呈现设定内容，不要写任何前言或引言，也不要使用列表格式。".into(),
         "gen_character" => "你是一位角色设计师。根据用户提供的故事设定和角色需求，生成一个完整的角色档案。请严格按以下格式输出，不要输出任何其他内容：\n\n【姓名】角色名\n【定位】主角/配角/反派/路人\n【描述】性格、外貌、背景故事、动机目标的详细描述（200字以内）".into(),
+        "gen_chapter" => "你是一位专业的网文作者。根据用户提供的小说设定和前文内容，直接生成一个完整的章节。要求：情节连贯，文笔流畅，篇幅适中（800-1500字），契合世界观和人物设定。\n\n输出格式要求（严格遵守）：\n第一行必须是章节标题，以 # 开头。例如：# 陨落的天才\n接下来空一行，然后直接开始正文。不要写任何前言、后记、说明、作者的话。".into(),
+        "gen_plot_summary" => "你是一位小说编辑，擅长为章节撰写简洁的剧情总结。请根据提供的章节内容和之前的剧情总结，用1-2句话概括本章发生的关键事件和情节推进。只输出总结本身，不要任何前缀、标记或格式。".into(),
         _ => "你是一位专业的网文创作助手。".into(),
     }
 }
@@ -401,7 +403,7 @@ fn build_messages(request: &AiRequest, system_prompt: &str) -> Vec<Message> {
         }
         "continue" => {
             let content = format!(
-                "请根据以下小说片段的上文语境，自然地续写下文。保持文风和节奏一致：\n\n---\n{}\n---\n\n续写：",
+                "请根据以下小说片段的上文语境，自然地续写下文。保持文风和节奏一致，直接从正文继续，不要加任何标题或标记：\n\n---\n{}\n---",
                 request.content
             );
             messages.push(Message {
@@ -424,6 +426,33 @@ fn build_messages(request: &AiRequest, system_prompt: &str) -> Vec<Message> {
                 "故事背景设定：\n\n{}\n\n请根据以上设定，生成一个角色。角色需求：\n\n{}",
                 ctx, request.content
             );
+            messages.push(Message { role: "user".into(), content });
+        }
+        "gen_chapter" => {
+            let ctx = request.context.as_deref().unwrap_or("");
+            let content = if ctx.is_empty() {
+                format!("请根据以下提示，直接生成一个完整的小说章节：\n\n{}", request.content)
+            } else {
+                format!(
+                    "小说设定和上下文：\n\n{}\n\n请根据以上设定，直接生成一个完整的小说章节。不需要写章节标题。\n\n补充提示：{}",
+                    ctx, request.content
+                )
+            };
+            messages.push(Message { role: "user".into(), content });
+        }
+        "gen_plot_summary" => {
+            let ctx = request.context.as_deref().unwrap_or("");
+            let content = if ctx.is_empty() {
+                format!(
+                    "请为以下章节内容生成1-2句话的剧情总结：\n\n{}",
+                    request.content
+                )
+            } else {
+                format!(
+                    "前文章节剧情总结：\n{}\n\n请根据上述前文总结，为以下新章节生成1-2句话的剧情总结，注意承上启下：\n\n{}",
+                    ctx, request.content
+                )
+            };
             messages.push(Message { role: "user".into(), content });
         }
         _ => {

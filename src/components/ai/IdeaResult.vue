@@ -20,9 +20,21 @@
       <template v-else>&#128161; {{ $t('ai.ideaBtn') }}</template>
     </button>
 
+    <div v-if="editorStore.isLoading" class="idea-loading">
+      <div class="idea-loading-bulb">&#128161;</div>
+      <div class="idea-loading-label">{{ $t('ai.ideaLloading') }}</div>
+      <div class="idea-sparks">
+        <span class="spark" :style="{ animationDelay: '0s' }">&#10022;</span>
+        <span class="spark" :style="{ animationDelay: '0.3s' }">&#10022;</span>
+        <span class="spark" :style="{ animationDelay: '0.6s' }">&#10022;</span>
+        <span class="spark" :style="{ animationDelay: '0.9s' }">&#10022;</span>
+        <span class="spark" :style="{ animationDelay: '1.2s' }">&#10022;</span>
+      </div>
+    </div>
+
     <div v-if="editorStore.error" class="result-error">{{ editorStore.error }}</div>
 
-    <div v-if="editorStore.aiResult && editorStore.activeAction === 'idea'" class="result-box markdown-body" v-html="renderedResult" />
+    <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box markdown-body" v-html="renderedResult" />
   </div>
 </template>
 
@@ -40,7 +52,7 @@ const bookStore = useBookStore()
 const ideaInput = ref('')
 
 const renderedResult = computed(() => {
-  return editorStore.aiResult
+  return editorStore.activeResult
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br>')
@@ -51,7 +63,7 @@ function buildBookContext(): string {
   if (!book) return ''
   return [
     book.worldSetting ? `【世界观】${book.worldSetting}` : '',
-    book.storySetting ? `【故事设定】${book.storySetting}` : '',
+    book.storySetting ? `【剧情总结】${book.storySetting}` : '',
     ...book.characters.filter((c) => c.name && c.description).map(
       (c) => `【角色·${c.role === 'protagonist' ? '主角' : c.role === 'antagonist' ? '反派' : '配角'}】${c.name}：${c.description}`,
     ),
@@ -159,5 +171,52 @@ async function doIdea() {
   font-size: 0.84rem;
   line-height: 1.7;
   color: var(--color-text);
+}
+
+.idea-loading {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.idea-loading-bulb {
+  font-size: 1.8rem;
+  animation: bulb-glow 1s ease-in-out infinite;
+}
+
+.idea-loading-label {
+  font-size: 0.78rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.idea-sparks {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.spark {
+  font-size: 0.7rem;
+  color: var(--color-accent);
+  opacity: 0;
+  animation: spark-pop 1.5s ease-in-out infinite;
+}
+
+@keyframes bulb-glow {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.15); filter: brightness(1.4); }
+}
+
+@keyframes spark-pop {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 1; transform: translateY(-6px) scale(1); }
+  40% { opacity: 0; transform: translateY(-12px) scale(0.5); }
+  100% { opacity: 0; transform: translateY(0) scale(0.5); }
 }
 </style>

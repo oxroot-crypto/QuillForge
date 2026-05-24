@@ -83,20 +83,31 @@
         + {{ $t('book.addCharacter') }}
       </button>
     </div>
+
+    <ModalDialog
+      :visible="modal.visible"
+      type="alert"
+      :message="modal.message"
+      :ok-text="t('common.confirm')"
+      @confirm="modal.visible = false"
+      @update:visible="(v: boolean) => modal.visible = v"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
 import { sendAiMessage } from '@/commands/llm'
+import ModalDialog from '@/components/common/ModalDialog.vue'
 import type { Character } from '@/types'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const bookStore = useBookStore()
+const modal = reactive({ visible: false, message: '' })
 
 defineProps<{ characters: Character[] }>()
 
@@ -129,7 +140,8 @@ async function doGenChar() {
     genActive.value = false
     genPrompt.value = ''
   } catch (e: any) {
-    alert(`AI generation failed: ${e}`)
+    modal.message = `AI generation failed: ${e}`
+    modal.visible = true
   } finally {
     genLoading.value = false
   }

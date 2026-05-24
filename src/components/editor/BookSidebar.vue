@@ -80,14 +80,25 @@
     <div class="sidebar-section chapter-section">
       <div class="section-header">
         <h3>{{ $t('book.chapter') }}</h3>
-        <button
-          class="btn-icon"
-          :title="$t('editor.newChapter')"
-          :disabled="!bookStore.activeBook"
-          @click="onCreateChapter"
-        >
-          +
-        </button>
+        <div class="chapter-actions">
+          <button
+            class="btn-icon btn-ai-gen"
+            :title="$t('ai.genChapter')"
+            :disabled="!bookStore.activeBook || genLoading"
+            @click="onGenerateChapter"
+          >
+            <span v-if="genLoading" class="btn-spinner" />
+            <template v-else>&#9889;</template>
+          </button>
+          <button
+            class="btn-icon"
+            :title="$t('editor.newChapter')"
+            :disabled="!bookStore.activeBook"
+            @click="onCreateChapter"
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
 
@@ -95,7 +106,7 @@
       <div v-if="!bookStore.activeBook" class="sidebar-empty">
         <p>{{ $t('book.noBook') }}</p>
       </div>
-      <div v-else-if="bookStore.activeBookChapters.length === 0" class="sidebar-empty">
+      <div v-else-if="bookStore.activeBookChapters.length === 0 && !genLoading" class="sidebar-empty">
         <p>{{ $t('book.noChapters') }}</p>
         <p>{{ $t('book.noChaptersHint') }}</p>
       </div>
@@ -118,6 +129,11 @@
           &times;
         </button>
       </div>
+      <!-- Ghost: AI generating chapter -->
+      <div v-if="genLoading" class="chapter-item chapter-item-ghost">
+        <span class="chapter-title ghost-title">{{ genTitle }}</span>
+        <span class="chapter-words ghost-words">{{ $t('ai.generatingWord') }}</span>
+      </div>
     </div>
 
     <!-- Footer -->
@@ -135,20 +151,38 @@
         &#8613;
       </button>
     </div>
+
+    <ModalDialog
+      :visible="modal.visible"
+      :type="modal.type"
+      :title="modal.title"
+      :message="modal.message"
+      :value="modal.value"
+      :ok-text="modal.okText || t('common.confirm')"
+      :cancel-text="modal.cancelText || t('common.cancel')"
+      @confirm="onModalConfirm"
+      @cancel="modal.visible = false"
+      @update:visible="(v: boolean) => modal.visible = v"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useBookStore } from '@/stores/book'
 import { useEditorStore } from '@/stores/editor'
-import { exportBookMarkdown } from '@/commands/llm'
+import { useSettingsStore } from '@/stores/settings'
+import { exportBookMarkdown, sendAiMessage } from '@/commands/llm'
 import type { Book } from '@/types'
+import ModalDialog from '@/components/common/ModalDialog.vue'
 import BookSettingsPanel from '@/components/editor/BookSettingsPanel.vue'
 import CharacterPanel from '@/components/editor/CharacterPanel.vue'
 
+const { t } = useI18n()
 const bookStore = useBookStore()
 const editorStore = useEditorStore()
+const settingsStore = useSettingsStore()
 
 const showSettings = ref(false)
 const showCharacters = ref(false)
@@ -156,6 +190,59 @@ const activeChapterId = ref('')
 const editingBook = ref<Book | null>(null)
 const editTitle = ref('')
 const renameInput = ref<HTMLInputElement | null>(null)
+const genLoading = ref(false)
+const genTitle = ref('')
+
+// — Modal state —
+type ModalType = 'prompt' | 'confirm' | 'alert'
+interface ModalAction { resolve: (value: string | boolean) => void }
+const modal = reactive<{
+  visible: boolean
+  type: ModalType
+  title: string
+  message: string
+  value: string
+  okText: string
+  cancelText: string
+  action: ModalAction | null
+}>({
+  visible: false,
+  type: 'alert',
+  title: '',
+  message: '',
+  value: '',
+  okText: '确定',
+  cancelText: '取消',
+  action: null,
+})
+
+function showModal(type: ModalType, title: string, opts?: { message?: string; value?: string }): Promise<string | boolean> {
+  return new Promise((resolve) => {
+    modal.type = type
+    modal.title = title
+    modal.message = opts?.message || ''
+    modal.value = opts?.value || ''
+    modal.visible = true
+    modal.action = { resolve }
+  })
+}
+
+function onModalConfirm(val: string) {
+  const action = modal.action
+  modal.action = null
+  if (action) {
+    action.resolve(modal.type === 'confirm' ? true : val)
+  }
+}
+
+watch(() => modal.visible, (v) => {
+  if (!v && modal.action) {
+    // 用户点击了取消或点击遮罩关闭
+    const action = modal.action
+    modal.action = null
+    action.resolve(modal.type === 'confirm' ? false : '')
+  }
+})
 
 const stats = computed(() =>
   bookStore.activeBookId
@@ -173,10 +260,10 @@ function selectBook(id: string) {
   showCharacters.value = false
 }
 
-function onCreateBook() {
-  const name = prompt(tKey('book.newBookPrompt'), tKey('book.defaultBookName'))
+async function onCreateBook() {
+  const name = await showModal('prompt', t('book.newBookPrompt'), { value: t('book.defaultBookName') })
   if (name) {
-    bookStore.createBook(name)
+    bookStore.createBook(name as string)
     showSettings.value = true
   }
 }
@@ -195,8 +282,9 @@ function onRenameBook() {
   editTitle.value = ''
 }
 
-function onDeleteBook(book: Book) {
-  if (confirm(tKey('book.confirmDeleteBook', book.title))) {
+async function onDeleteBook(book: Book) {
+  const ok = await showModal('confirm', t('book.confirmDeleteBook', { title: book.title }))
+  if (ok) {
     bookStore.deleteBook(book.id)
     if (book.id === bookStore.activeBookId) {
       editorStore.updateContent('')
@@ -206,11 +294,76 @@ function onDeleteBook(book: Book) {
 }
 
 function onCreateChapter() {
-  const chapter = bookStore.createChapter(tKey('editor.defaultChapterName'))
+  const chapter = bookStore.createChapter(t('editor.defaultChapterName'))
   if (chapter) {
     activeChapterId.value = chapter.id
     editorStore.currentChapterId = chapter.id
     editorStore.updateContent('')
+  }
+}
+
+async function onGenerateChapter() {
+  const book = bookStore.activeBook
+  if (!book || genLoading.value) return
+
+  genLoading.value = true
+  genTitle.value = t('ai.genChapterLoading')
+  editorStore.setError('')
+
+  try {
+    const ctxParts: string[] = []
+    if (book.worldSetting) ctxParts.push(`【世界观】${book.worldSetting}`)
+    if (book.storySetting) ctxParts.push(`【剧情总结】${book.storySetting}`)
+    if (book.characters.length > 0) {
+      const charInfo = book.characters
+        .filter((c) => c.name)
+        .map((c) => `【${c.role}】${c.name}：${c.description}`)
+        .join('\n')
+      if (charInfo) ctxParts.push(`【角色】\n${charInfo}`)
+    }
+    if (book.chapters.length > 0) {
+      const chapterTitles = book.chapters.map((c, i) => `${i + 1}. ${c.title}`).join('\n')
+      ctxParts.push(`【已有章节】\n${chapterTitles}`)
+    }
+    const ctx = ctxParts.join('\n\n')
+
+    const result = await sendAiMessage(settingsStore.modelConfig, {
+      action: 'gen_chapter',
+      content: book.chapters.length === 0 ? '请生成小说的第一章，直接进入故事。' : '请根据已有章节的脉络，续写下一个章节。',
+      context: ctx || undefined,
+    })
+
+    const raw = result.trim()
+    const lines = raw.split('\n')
+    let title = ''
+    let content = raw
+    const titleMatch = lines[0].match(/^#\s+(.+)/)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+      let bodyStart = 1
+      while (bodyStart < lines.length && lines[bodyStart].trim() === '') {
+        bodyStart++
+      }
+      content = lines.slice(bodyStart).join('\n').trim()
+    }
+    if (!title) title = `AI生成 ${book.chapters.length + 1}`
+
+    const htmlContent = content
+      .split(/\n\n+/)
+      .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+      .join('')
+
+    const chapter = bookStore.createChapter(title)
+    if (chapter) {
+      bookStore.updateChapterContent(book.id, chapter.id, htmlContent)
+      activeChapterId.value = chapter.id
+      editorStore.currentChapterId = chapter.id
+      editorStore.updateContent(htmlContent)
+    }
+  } catch (e: any) {
+    editorStore.setError(e.toString())
+  } finally {
+    genLoading.value = false
   }
 }
 
@@ -222,8 +375,9 @@ function selectChapter(id: string) {
   )
 }
 
-function onDeleteChapter(chapterId: string) {
-  if (confirm(tKey('common.confirmDeleteChapter'))) {
+async function onDeleteChapter(chapterId: string) {
+  const ok = await showModal('confirm', t('common.confirmDeleteChapter'))
+  if (ok) {
     bookStore.deleteChapter(bookStore.activeBookId, chapterId)
     if (activeChapterId.value === chapterId) {
       activeChapterId.value = ''
@@ -244,36 +398,12 @@ async function onExport() {
       book.title,
       JSON.stringify(book.chapters.map((c) => ({ title: c.title, content: c.content }))),
     )
-    alert(`${tKey('book.exportSuccess')}${path}`)
+    await showModal('alert', '', { message: t('book.exportSuccess') + path })
   } catch (e: any) {
-    alert(`${tKey('book.exportFailed')}${e}`)
+    await showModal('alert', t('common.error'), { message: t('book.exportFailed') + e })
   }
 }
 
-function tKey(key: string, ...args: string[]): string {
-  const locale = localStorage.getItem('quillforge-locale') || 'zh-CN'
-  const map: Record<string, Record<string, string>> = {
-    'zh-CN': {
-      'book.newBookPrompt': '请输入书籍名称：',
-      'book.defaultBookName': '新书',
-      'editor.defaultChapterName': '新章节',
-      'common.confirmDeleteChapter': '确定删除此章节？此操作不可撤销。',
-      'book.confirmDeleteBook': `确定删除书籍「${args[0] || ''}」及其所有章节和角色？此操作不可撤销。`,
-      'book.exportSuccess': '导出成功：',
-      'book.exportFailed': '导出失败：',
-    },
-    'en-US': {
-      'book.newBookPrompt': 'Enter book name:',
-      'book.defaultBookName': 'New Book',
-      'editor.defaultChapterName': 'New Chapter',
-      'common.confirmDeleteChapter': 'Delete this chapter? This cannot be undone.',
-      'book.confirmDeleteBook': `Delete "${args[0] || ''}" and all its chapters and characters? This cannot be undone.`,
-      'book.exportSuccess': 'Export successful: ',
-      'book.exportFailed': 'Export failed: ',
-    },
-  }
-  return map[locale]?.[key] || key
-}
 </script>
 
 <style scoped>
@@ -438,6 +568,34 @@ function tKey(key: string, ...args: string[]): string {
 }
 
 /* ── Chapter list ── */
+.chapter-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.btn-ai-gen {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35) !important;
+}
+.btn-ai-gen:hover:not(:disabled) {
+  box-shadow: 0 3px 12px rgba(245, 158, 11, 0.5) !important;
+}
+
+.btn-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .chapter-list {
   flex: 1;
   overflow-y: auto;
@@ -472,6 +630,33 @@ function tKey(key: string, ...args: string[]): string {
   font-size: 0.64rem;
   color: var(--color-text-muted);
   white-space: nowrap;
+}
+
+.chapter-item-ghost {
+  border: 1px dashed var(--color-accent) !important;
+  background: var(--color-accent-light) !important;
+  cursor: default !important;
+  animation: ghost-pulse 1.6s ease-in-out infinite;
+}
+
+.ghost-title {
+  color: var(--color-accent) !important;
+  font-style: italic;
+}
+
+.ghost-words {
+  color: var(--color-accent) !important;
+  animation: blink-text 1s ease-in-out infinite;
+}
+
+@keyframes ghost-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes blink-text {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
 }
 
 .btn-delete {

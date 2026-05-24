@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> | <a href="README_zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a>
   <a href="https://vuejs.org"><img src="https://img.shields.io/badge/vue-3.x-brightgreen.svg" alt="Vue 3" /></a>
   <a href="https://v2.tauri.app"><img src="https://img.shields.io/badge/tauri-2.x-orange.svg" alt="Tauri 2" /></a>
@@ -129,7 +133,7 @@ npm run tauri build
 
 ## 📄 License
 
-MIT © 2026 [oxroot](https://github.com/oxroot) & Claude
+MIT © 2026 [oxroot](https://github.com/oxroot-crypto) & Claude
 
 ---
 

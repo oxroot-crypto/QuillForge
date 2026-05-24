@@ -29,54 +29,124 @@
       />
     </div>
 
-    <!-- Story Setting -->
+    <!-- Plot Summary -->
     <div class="field">
       <div class="field-header">
         <label>{{ $t('book.storySetting') }}</label>
-        <button class="btn-ai" :disabled="genLoading === 'story'" @click="startGen('story')">
-          {{ genLoading === 'story' ? '...' : 'AI' }}
+        <button
+          class="btn-ai"
+          :disabled="genLoading === 'plot' || props.book.chapters.length === 0"
+          @click="doPlotSummary"
+        >
+          {{ genLoading === 'plot' ? `${genProgress.current}/${genProgress.total}` : 'AI' }}
         </button>
       </div>
       <p class="field-hint">{{ $t('book.storySettingHint') }}</p>
-      <div v-if="genActive === 'story'" class="gen-row">
-        <input
-          v-model="genPrompt"
-          class="gen-input"
-          :placeholder="$t('book.genSettingPlaceholder')"
-          @keydown.enter="doGenerate('story')"
-        />
-        <button class="btn-gen-go" :disabled="genLoading === 'story'" @click="doGenerate('story')">
-          {{ $t('book.generate') }}
-        </button>
+      <div v-if="genLoading === 'plot'" class="gen-progress">
+        <div class="gen-progress-bar">
+          <div class="gen-progress-fill" :style="{ width: genProgressPct + '%' }" />
+        </div>
+        <span class="gen-progress-label">{{ $t('book.genPlotProgress', { title: genProgress.chapterTitle }) }}</span>
       </div>
       <textarea
         :value="book.storySetting"
         class="field-textarea"
-        rows="6"
+        rows="8"
         :placeholder="$t('book.storySettingPlaceholder')"
         @input="emit('update', { storySetting: ($event.target as HTMLTextAreaElement).value })"
       />
     </div>
+
+    <ModalDialog
+      :visible="modal.visible"
+      type="alert"
+      :message="modal.message"
+      :ok-text="t('common.confirm')"
+      @confirm="modal.visible = false"
+      @update:visible="(v: boolean) => modal.visible = v"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { sendAiMessage } from '@/commands/llm'
+import ModalDialog from '@/components/common/ModalDialog.vue'
 import type { Book } from '@/types'
 
 const props = defineProps<{ book: Book }>()
 const emit = defineEmits<{ update: [data: Record<string, string>] }>()
 
+const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const genActive = ref<string>('')
 const genLoading = ref<string>('')
 const genPrompt = ref('')
+const genProgress = reactive({ current: 0, total: 0, chapterTitle: '' })
+const modal = reactive({ visible: false, message: '' })
+
+const genProgressPct = computed(() =>
+  genProgress.total > 0 ? Math.round((genProgress.current / genProgress.total) * 100) : 0,
+)
 
 function startGen(field: string) {
   genActive.value = genActive.value === field ? '' : field
   genPrompt.value = ''
+}
+
+async function doPlotSummary() {
+  const chapters = props.book.chapters
+  if (chapters.length === 0) return
+
+  genLoading.value = 'plot'
+  genProgress.total = chapters.length
+  genProgress.current = 0
+
+  const summaries: string[] = []
+  try {
+    for (let i = 0; i < chapters.length; i++) {
+      const ch = chapters[i]
+      genProgress.current = i + 1
+      genProgress.chapterTitle = ch.title
+
+      const plainText = ch.content.replace(/<[^>]*>/g, '').trim()
+      if (!plainText) {
+        summaries.push(`${i + 1}. ${ch.title}：(${t('book.emptyChapter')})`)
+        continue
+      }
+
+      const prevContext = summaries.length > 0 ? summaries.join('\n') : ''
+      const result = await sendAiMessage(settingsStore.modelConfig, {
+        action: 'gen_plot_summary',
+        content: plainText.slice(0, 3000),
+        context: prevContext || undefined,
+      })
+
+      const numbered = result.trim().match(/^\d+\./)
+        ? result.trim()
+        : `${i + 1}. ${ch.title}：${result.trim()}`
+      summaries.push(numbered)
+    }
+
+    // 第二步：把逐章总结凝练成一段总的故事总结
+    genProgress.chapterTitle = t('book.genFinalSummary')
+    const perChapterText = summaries.join('\n\n')
+    const worldCtx = props.book.worldSetting ? `世界观设定：${props.book.worldSetting}\n\n` : ''
+    const finalSummary = await sendAiMessage(settingsStore.modelConfig, {
+      action: 'gen_plot_summary',
+      content: `请将以下逐章剧情总结，整合概括成一段连贯、流畅的总故事总结（300字以内），清晰呈现整本书的情节主线、关键转折和人物弧光：\n\n${perChapterText}`,
+      context: worldCtx || undefined,
+    })
+
+    emit('update', { storySetting: finalSummary.trim() })
+  } catch (e: any) {
+    modal.message = t('book.genPlotFailed') + e
+    modal.visible = true
+  } finally {
+    genLoading.value = ''
+  }
 }
 
 async function doGenerate(field: string) {
@@ -95,7 +165,8 @@ async function doGenerate(field: string) {
     genActive.value = ''
     genPrompt.value = ''
   } catch (e: any) {
-    alert(`AI generation failed: ${e}`)
+    modal.message = `AI generation failed: ${e}`
+    modal.visible = true
   } finally {
     genLoading.value = ''
   }
@@ -201,5 +272,31 @@ async function doGenerate(field: string) {
 .field-textarea::placeholder {
   color: var(--color-text-muted);
   opacity: 0.5;
+}
+
+.gen-progress {
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gen-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.gen-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-hover));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.gen-progress-label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
 }
 </style>

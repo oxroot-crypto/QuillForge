@@ -23,9 +23,18 @@
       <template v-else>&#9997; {{ $t('ai.continueBtn') }}</template>
     </button>
 
+    <div v-if="editorStore.isLoading" class="continue-loading">
+      <div class="continue-loading-icon">&#9997;</div>
+      <div class="continue-loading-label">{{ $t('ai.continueLoading') }}</div>
+      <div class="continue-typing">
+        <span class="typing-cursor">|</span>
+        <span class="typing-text">{{ $t('ai.continueTypingText') }}</span>
+      </div>
+    </div>
+
     <div v-if="editorStore.error" class="result-error">{{ editorStore.error }}</div>
 
-    <div v-if="editorStore.aiResult && editorStore.activeAction === 'continue'" class="result-box">
+    <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box">
       <div class="markdown-body" v-html="renderedResult" />
     </div>
   </div>
@@ -46,7 +55,7 @@ const bookStore = useBookStore()
 const styleOption = ref('auto')
 
 const renderedResult = computed(() => {
-  return editorStore.aiResult
+  return editorStore.activeResult
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n\n/g, '</p><p>')
@@ -58,7 +67,7 @@ function buildBookContext(): string {
   if (!book) return ''
   return [
     book.worldSetting ? `【世界观】${book.worldSetting}` : '',
-    book.storySetting ? `【故事设定】${book.storySetting}` : '',
+    book.storySetting ? `【剧情总结】${book.storySetting}` : '',
     ...book.characters.filter((c) => c.name && c.description).map(
       (c) => `【角色】${c.name}(${c.role})：${c.description}`,
     ),
@@ -191,5 +200,62 @@ async function doContinue() {
   text-align: center;
   padding: 6px;
   border-top: 1px solid var(--color-border);
+}
+
+.continue-loading {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.continue-loading-icon {
+  font-size: 1.8rem;
+  animation: pen-bounce 0.8s ease-in-out infinite;
+}
+
+.continue-loading-label {
+  font-size: 0.78rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.continue-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.typing-cursor {
+  font-size: 1rem;
+  color: var(--color-accent);
+  animation: cursor-blink 0.8s step-end infinite;
+}
+
+.typing-text {
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  animation: fade-in-out 2s ease-in-out infinite;
+}
+
+@keyframes pen-bounce {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fade-in-out {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
 }
 </style>

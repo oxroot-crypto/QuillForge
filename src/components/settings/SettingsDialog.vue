@@ -154,16 +154,29 @@
         </div>
       </div>
     </div>
+
+    <ModalDialog
+      :visible="modal.visible"
+      :type="modal.type"
+      :title="modal.title"
+      :value="modal.value"
+      :ok-text="modal.okText || t('common.confirm')"
+      :cancel-text="modal.cancelText || t('common.cancel')"
+      @confirm="onModalConfirm"
+      @cancel="modal.visible = false"
+      @update:visible="(v: boolean) => modal.visible = v"
+    />
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { checkProviderConnection } from '@/commands/llm'
 import ProviderCard from './ProviderCard.vue'
 import ApiKeyInput from './ApiKeyInput.vue'
+import ModalDialog from '@/components/common/ModalDialog.vue'
 
 defineProps<{ visible: boolean }>()
 defineEmits<{ close: [] }>()
@@ -175,34 +188,82 @@ const isFreeModelInput = computed(() =>
   settingsStore.modelConfig.provider === 'openai_compat' || settingsStore.modelConfig.provider === 'ollama'
 )
 
-function onSelectProvider(providerId: string) {
-  const provider = settingsStore.providers.find((p) => p.id === providerId)
-  settingsStore.updateActiveConfig({
-    provider: providerId,
-    api_base: provider?.default_api_base || 'http://localhost:8000/v1',
-    model: provider?.models?.[0] || '',
+// ── Modal ──
+interface ModalAction { resolve: (value: string | boolean) => void }
+const modal = reactive<{
+  visible: boolean
+  type: 'prompt' | 'confirm' | 'alert'
+  title: string
+  message: string
+  value: string
+  okText: string
+  cancelText: string
+  action: ModalAction | null
+}>({
+  visible: false,
+  type: 'alert',
+  title: '',
+  message: '',
+  value: '',
+  okText: '',
+  cancelText: '',
+  action: null,
+})
+
+function showModal(type: 'prompt' | 'confirm', title: string, value = ''): Promise<string | boolean> {
+  return new Promise((resolve) => {
+    modal.type = type
+    modal.title = title
+    modal.value = value
+    modal.visible = true
+    modal.action = { resolve }
   })
 }
 
-function onNewPreset() {
-  const name = prompt(t('settings.newPresetPrompt'), '')
-  if (name) settingsStore.createPreset(name)
+function onModalConfirm(val: string) {
+  const action = modal.action
+  modal.action = null
+  if (action) action.resolve(modal.type === 'confirm' ? true : val)
 }
 
-function onRenamePreset() {
+watch(() => modal.visible, (v) => {
+  if (!v && modal.action) {
+    const action = modal.action
+    modal.action = null
+    action.resolve(modal.type === 'confirm' ? false : '')
+  }
+})
+
+// ── Provider ──
+function onSelectProvider(providerId: string) {
+  const provider = settingsStore.providers.find((p) => p.id === providerId)
+  const preset = settingsStore.activePreset
+  const saved = preset?.providerConfigs?.[providerId]
+  settingsStore.updateActiveConfig({
+    provider: providerId,
+    api_base: saved?.api_base || provider?.default_api_base || 'http://localhost:8000/v1',
+    model: saved?.model || provider?.models?.[0] || '',
+  })
+}
+
+async function onNewPreset() {
+  const name = await showModal('prompt', t('settings.newPresetPrompt'))
+  if (name) settingsStore.createPreset(name as string)
+}
+
+async function onRenamePreset() {
   const current = settingsStore.activePreset
   if (!current) return
-  const name = prompt(t('settings.renamePresetPrompt'), current.name)
+  const name = await showModal('prompt', t('settings.renamePresetPrompt'), current.name)
   if (name) settingsStore.updatePreset(current.id, { name })
 }
 
-function onDeletePreset() {
+async function onDeletePreset() {
   if (settingsStore.presets.length <= 1) return
   const current = settingsStore.activePreset
   if (!current) return
-  if (confirm(t('settings.deletePresetConfirm', { name: current.name }))) {
-    settingsStore.deletePreset(settingsStore.activePresetId)
-  }
+  const ok = await showModal('confirm', t('settings.deletePresetConfirm', { name: current.name }))
+  if (ok) settingsStore.deletePreset(settingsStore.activePresetId)
 }
 
 async function testConnection() {

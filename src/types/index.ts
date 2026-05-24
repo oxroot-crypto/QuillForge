@@ -12,10 +12,16 @@ export interface ModelConfig {
   system_prompt: string
 }
 
+export interface ProviderSavedConfig {
+  model: string
+  api_base: string
+}
+
 export interface ModelPreset {
   id: string
   name: string
   config: ModelConfig
+  providerConfigs: Record<string, ProviderSavedConfig>
 }
 
 export interface ProviderInfo {

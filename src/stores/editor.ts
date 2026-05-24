@@ -7,7 +7,7 @@ export const useEditorStore = defineStore('editor', () => {
   const currentChapterId = ref('')
   const selectedText = ref('')
   const activeAction = ref<AiAction>('review')
-  const aiResult = ref('')
+  const aiResults = ref<Record<string, string>>({})
   const isLoading = ref(false)
   const error = ref('')
   const wordCount = ref(0)
@@ -31,8 +31,10 @@ export const useEditorStore = defineStore('editor', () => {
     activeAction.value = action
   }
 
+  const activeResult = computed(() => aiResults.value[activeAction.value] || '')
+
   function setAiResult(result: string) {
-    aiResult.value = result
+    aiResults.value[activeAction.value] = result
   }
 
   function setLoading(loading: boolean) {
@@ -44,7 +46,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function clearResult() {
-    aiResult.value = ''
+    aiResults.value[activeAction.value] = ''
     error.value = ''
   }
 
@@ -58,7 +60,8 @@ export const useEditorStore = defineStore('editor', () => {
     currentChapterId,
     selectedText,
     activeAction,
-    aiResult,
+    aiResults,
+    activeResult,
     isLoading,
     error,
     wordCount,

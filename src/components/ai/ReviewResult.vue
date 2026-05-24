@@ -18,9 +18,20 @@
       <div class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
     </div>
 
+    <div v-if="editorStore.isLoading" class="review-loading">
+      <div class="review-loading-icon">&#128269;</div>
+      <div class="review-loading-label">{{ $t('ai.reviewLoading') }}</div>
+      <div class="review-scan-lines">
+        <div class="scan-line" :style="{ animationDelay: '0s' }" />
+        <div class="scan-line" :style="{ animationDelay: '0.2s' }" />
+        <div class="scan-line" :style="{ animationDelay: '0.4s' }" />
+        <div class="scan-line" :style="{ animationDelay: '0.6s' }" />
+      </div>
+    </div>
+
     <div v-if="editorStore.error" class="result-error">{{ editorStore.error }}</div>
 
-    <div v-if="editorStore.aiResult && editorStore.activeAction === 'review'" class="result-box markdown-body" v-html="renderedResult" />
+    <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box markdown-body" v-html="renderedResult" />
   </div>
 </template>
 
@@ -37,7 +48,7 @@ const settingsStore = useSettingsStore()
 const bookStore = useBookStore()
 
 const renderedResult = computed(() => {
-  return editorStore.aiResult
+  return editorStore.activeResult
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br>')
@@ -48,7 +59,7 @@ function buildBookContext(): string {
   if (!book) return ''
   return [
     book.worldSetting ? `【世界观】${book.worldSetting}` : '',
-    book.storySetting ? `【故事设定】${book.storySetting}` : '',
+    book.storySetting ? `【剧情总结】${book.storySetting}` : '',
     ...book.characters.filter((c) => c.name && c.description).map(
       (c) => `【角色·${c.role === 'protagonist' ? '主角' : c.role === 'antagonist' ? '反派' : c.role === 'supporting' ? '配角' : '路人'}】${c.name}：${c.description}`,
     ),
@@ -153,5 +164,55 @@ async function doReview() {
   font-size: 0.84rem;
   line-height: 1.7;
   color: var(--color-text);
+}
+
+.review-loading {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-loading-icon {
+  font-size: 1.8rem;
+  animation: review-pulse 1.2s ease-in-out infinite;
+}
+
+.review-loading-label {
+  font-size: 0.78rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.review-scan-lines {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.scan-line {
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  animation: scan-flash 1.4s ease-in-out infinite;
+  opacity: 0;
+}
+
+@keyframes review-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes scan-flash {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  70% { opacity: 0; }
+  100% { opacity: 0; }
 }
 </style>

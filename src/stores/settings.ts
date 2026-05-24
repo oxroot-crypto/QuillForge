@@ -74,6 +74,7 @@ export const useSettingsStore = defineStore('settings', () => {
       id: pid(),
       name: name || `配置 ${presets.value.length + 1}`,
       config: { ...modelConfig.value },
+      providerConfigs: {},
     }
     presets.value.push(preset)
     activePresetId.value = preset.id
@@ -86,6 +87,7 @@ export const useSettingsStore = defineStore('settings', () => {
       id: pid(),
       name: name || `配置 ${presets.value.length + 1}`,
       config: { ...modelConfig.value },
+      providerConfigs: {},
     }
     // Replace existing preset with same name
     const idx = presets.value.findIndex((x) => x.name === preset.name)
@@ -122,10 +124,17 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function updateActiveConfig(partial: Partial<ModelConfig>) {
     const p = presets.value.find((x) => x.id === activePresetId.value)
-    if (p) {
-      Object.assign(p.config, partial)
-      persist()
+    if (!p) return
+    // 切换 provider 前，先把当前 provider 的 model/api_base 存档
+    if (partial.provider && partial.provider !== p.config.provider) {
+      p.providerConfigs ??= {}
+      p.providerConfigs[p.config.provider] = {
+        model: p.config.model,
+        api_base: p.config.api_base,
+      }
     }
+    Object.assign(p.config, partial)
+    persist()
   }
 
   // ── API Keys ──
