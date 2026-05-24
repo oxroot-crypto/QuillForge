@@ -255,7 +255,7 @@ async function onRenamePreset() {
   const current = settingsStore.activePreset
   if (!current) return
   const name = await showModal('prompt', t('settings.renamePresetPrompt'), current.name)
-  if (name) settingsStore.updatePreset(current.id, { name })
+  if (name) settingsStore.updatePreset(current.id, { name: name as string })
 }
 
 async function onDeletePreset() {
