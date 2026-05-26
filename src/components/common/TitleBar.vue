@@ -5,17 +5,17 @@
       <span class="titlebar-title">QuillForge</span>
     </div>
 
-    <div class="titlebar-controls">
-      <button class="ctrl-btn ctrl-min" title="最小化" @click="win.minimize()">
+    <div v-if="winRef" class="titlebar-controls">
+      <button class="ctrl-btn ctrl-min" title="最小化" @click="winRef.minimize()">
         <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="1.5" fill="currentColor"/></svg>
       </button>
-      <button v-if="!isMaximized" class="ctrl-btn ctrl-max" title="最大化" @click="win.toggleMaximize()">
+      <button v-if="!isMaximized" class="ctrl-btn ctrl-max" title="最大化" @click="winRef.toggleMaximize()">
         <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
-      <button v-else class="ctrl-btn ctrl-max" title="还原" @click="win.toggleMaximize()">
+      <button v-else class="ctrl-btn ctrl-max" title="还原" @click="winRef.toggleMaximize()">
         <svg width="12" height="12" viewBox="0 0 12 12"><rect x="3" y="1" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="3" width="8" height="8" fill="var(--color-surface)" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
-      <button class="ctrl-btn ctrl-close" title="关闭" @click="win.close()">
+      <button class="ctrl-btn ctrl-close" title="关闭" @click="winRef.close()">
         <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
     </div>
@@ -24,16 +24,28 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 
-const win = getCurrentWindow()
+const winRef = ref<{
+  minimize: () => Promise<void>
+  toggleMaximize: () => Promise<void>
+  close: () => Promise<void>
+  isMaximized: () => Promise<boolean>
+  onResized: (fn: () => void) => Promise<() => void>
+} | null>(null)
 const isMaximized = ref(false)
 
 onMounted(async () => {
-  isMaximized.value = await win.isMaximized()
-  await win.onResized(async () => {
-    isMaximized.value = await win.isMaximized()
-  })
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const w = getCurrentWindow()
+    winRef.value = w
+    isMaximized.value = await w.isMaximized()
+    await w.onResized(async () => {
+      isMaximized.value = await w.isMaximized()
+    })
+  } catch {
+    // Not running inside Tauri webview — hide window controls
+  }
 })
 </script>
 

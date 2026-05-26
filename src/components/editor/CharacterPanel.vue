@@ -100,7 +100,7 @@ import { ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
-import { sendAiMessage } from '@/commands/llm'
+import { sendAiMessage } from '@/commands/ai'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import type { Character } from '@/types'
 
@@ -139,8 +139,8 @@ async function doGenChar() {
 
     genActive.value = false
     genPrompt.value = ''
-  } catch (e: any) {
-    modal.message = `AI generation failed: ${e}`
+  } catch (e: unknown) {
+    modal.message = `AI generation failed: ${String(e)}`
     modal.visible = true
   } finally {
     genLoading.value = false

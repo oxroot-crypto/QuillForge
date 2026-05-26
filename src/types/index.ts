@@ -38,12 +38,20 @@ export interface AiRequest {
   context?: string
 }
 
+export interface Snapshot {
+  timestamp: string
+  label: string
+  word_count: number
+  content: string
+}
+
 export interface Chapter {
   id: string
   title: string
   content: string
   createdAt: string
   updatedAt: string
+  snapshots: Snapshot[]
 }
 
 export interface Character {
@@ -71,7 +79,7 @@ export interface Project {
   chapters: Chapter[]
 }
 
-export type AiAction = 'review' | 'idea' | 'continue'
+export type AiAction = 'review' | 'idea' | 'continue' | 'consistency' | 'gen_chapter'
 
 export interface AiActionConfig {
   action: AiAction

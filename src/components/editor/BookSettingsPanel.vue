@@ -72,7 +72,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
-import { sendAiMessage } from '@/commands/llm'
+import { sendAiMessage } from '@/commands/ai'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import type { Book } from '@/types'
 
@@ -141,8 +141,8 @@ async function doPlotSummary() {
     })
 
     emit('update', { storySetting: finalSummary.trim() })
-  } catch (e: any) {
-    modal.message = t('book.genPlotFailed') + e
+  } catch (e: unknown) {
+    modal.message = t('book.genPlotFailed') + String(e)
     modal.visible = true
   } finally {
     genLoading.value = ''
@@ -164,8 +164,8 @@ async function doGenerate(field: string) {
     emit('update', { [key]: result })
     genActive.value = ''
     genPrompt.value = ''
-  } catch (e: any) {
-    modal.message = `AI generation failed: ${e}`
+  } catch (e: unknown) {
+    modal.message = `AI generation failed: ${String(e)}`
     modal.visible = true
   } finally {
     genLoading.value = ''

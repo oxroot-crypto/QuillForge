@@ -13,6 +13,15 @@
       <template v-else>&#128269; {{ $t('ai.reviewBtn') }}</template>
     </button>
 
+    <!-- Cancel button -->
+    <button
+      v-if="editorStore.isLoading"
+      class="btn-cancel"
+      @click="onCancel"
+    >
+      {{ $t('common.cancel') }}
+    </button>
+
     <div v-if="editorStore.selectedText && !editorStore.isLoading" class="selected-preview">
       <div class="preview-label">{{ $t('ai.selected', { count: editorStore.selectedText.length }) }}</div>
       <div class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
@@ -29,19 +38,20 @@
       </div>
     </div>
 
-    <div v-if="editorStore.error" class="result-error">{{ editorStore.error }}</div>
+    <div v-if="editorStore.activeError" class="result-error">{{ editorStore.activeError }}</div>
 
     <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box markdown-body" v-html="renderedResult" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
-import { sendAiMessage } from '@/commands/llm'
+import { sendAiMessage } from '@/commands/ai'
 import LoadingDots from '@/components/common/LoadingDots.vue'
+import { focusEditor } from '@/extensions/ghost-text'
 
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
@@ -69,22 +79,41 @@ function buildBookContext(): string {
 async function doReview() {
   if (!editorStore.selectedText) return
   editorStore.setLoading(true)
-  editorStore.setError('')
-  editorStore.setAiResult('')
+  editorStore.setAiResult('', 'review')
+  editorStore.setError('', 'review')
+  editorStore.resetCancel('review')
   try {
     const bookCtx = buildBookContext()
-    const result = await sendAiMessage(settingsStore.modelConfig, {
+    const result = await sendAiMessage(settingsStore.effectiveConfig, {
       action: 'review',
       content: editorStore.selectedText,
       context: bookCtx || undefined,
     })
-    editorStore.setAiResult(result)
-  } catch (e: any) {
-    editorStore.setError(e.toString())
+    if (editorStore.isCancelled('review')) return
+    editorStore.setAiResult(result, 'review')
+  } catch (e: unknown) {
+    if (!editorStore.isCancelled('review')) {
+      editorStore.setError(String(e), 'review')
+    }
   } finally {
     editorStore.setLoading(false)
+    editorStore.resetCancel('review')
+    focusEditor()
   }
 }
+
+function onCancel() {
+  editorStore.cancelAction('review')
+  editorStore.setLoading(false)
+  focusEditor()
+}
+
+onMounted(() => {
+  editorStore.registerActionHandler('review', doReview)
+})
+onBeforeUnmount(() => {
+  editorStore.unregisterActionHandler('review')
+})
 </script>
 
 <style scoped>
@@ -207,6 +236,23 @@ async function doReview() {
 @keyframes review-pulse {
   0%, 100% { transform: scale(1); opacity: 0.7; }
   50% { transform: scale(1.1); opacity: 1; }
+}
+
+.btn-cancel {
+  width: 100%;
+  padding: 8px 16px;
+  border: 1px solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.btn-cancel:hover {
+  background: var(--color-danger-bg);
 }
 
 @keyframes scan-flash {

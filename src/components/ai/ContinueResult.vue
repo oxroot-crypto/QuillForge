@@ -23,6 +23,14 @@
       <template v-else>&#9997; {{ $t('ai.continueBtn') }}</template>
     </button>
 
+    <button
+      v-if="editorStore.isLoading"
+      class="btn-cancel"
+      @click="onCancel"
+    >
+      {{ $t('common.cancel') }}
+    </button>
+
     <div v-if="editorStore.isLoading" class="continue-loading">
       <div class="continue-loading-icon">&#9997;</div>
       <div class="continue-loading-label">{{ $t('ai.continueLoading') }}</div>
@@ -32,7 +40,7 @@
       </div>
     </div>
 
-    <div v-if="editorStore.error" class="result-error">{{ editorStore.error }}</div>
+    <div v-if="editorStore.activeError" class="result-error">{{ editorStore.activeError }}</div>
 
     <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box">
       <div class="markdown-body" v-html="renderedResult" />
@@ -41,12 +49,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
-import { sendAiMessage } from '@/commands/llm'
-import { showGhostText, clearGhostText } from '@/extensions/ghost-text'
+import { sendAiMessage } from '@/commands/ai'
+import { showGhostText, clearGhostText, focusEditor } from '@/extensions/ghost-text'
 import LoadingDots from '@/components/common/LoadingDots.vue'
 
 const editorStore = useEditorStore()
@@ -78,26 +86,45 @@ async function doContinue() {
   if (!editorStore.hasContent) return
   const context = editorStore.content.replace(/<[^>]*>/g, '').slice(-2000)
   editorStore.setLoading(true)
-  editorStore.setError('')
-  editorStore.setAiResult('')
+  editorStore.setAiResult('', 'continue')
+  editorStore.setError('', 'continue')
+  editorStore.resetCancel('continue')
   try {
     const bookCtx = buildBookContext()
     const styleHint = styleOption.value === 'auto' ? '' : `续写风格偏好：${styleOption.value}。`
     const fullContext = [bookCtx, `【正文】${context}`].filter(Boolean).join('\n\n')
-    const result = await sendAiMessage(settingsStore.modelConfig, {
+    const result = await sendAiMessage(settingsStore.effectiveConfig, {
       action: 'continue',
       content: `${styleHint}\n\n${fullContext}`,
     })
-    editorStore.setAiResult(result)
+    if (editorStore.isCancelled('continue')) return
+    editorStore.setAiResult(result, 'continue')
     clearGhostText()
     showGhostText(result.replace(/\*\*.*?\*\*/g, '$&').replace(/\*.*?\*/g, '$&'))
-  } catch (e: any) {
-    editorStore.setError(e.toString())
+  } catch (e: unknown) {
+    if (!editorStore.isCancelled('continue')) {
+      editorStore.setError(String(e), 'continue')
+    }
   } finally {
     editorStore.setLoading(false)
+    editorStore.resetCancel('continue')
+    focusEditor()
   }
 }
 
+function onCancel() {
+  editorStore.cancelAction('continue')
+  clearGhostText()
+  editorStore.setLoading(false)
+  focusEditor()
+}
+
+onMounted(() => {
+  editorStore.registerActionHandler('continue', doContinue)
+})
+onBeforeUnmount(() => {
+  editorStore.unregisterActionHandler('continue')
+})
 </script>
 
 <style scoped>
@@ -182,6 +209,20 @@ async function doContinue() {
   border: 1px solid var(--color-danger);
   font-size: 0.8rem;
 }
+
+.btn-cancel {
+  width: 100%;
+  padding: 8px 16px;
+  border: 1px solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+.btn-cancel:hover { background: var(--color-danger-bg); }
 
 .result-box {
   background: var(--color-bg);

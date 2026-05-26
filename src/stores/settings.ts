@@ -1,13 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { ModelConfig, ModelPreset, ProviderInfo } from '@/types'
-import {
-  getSupportedProviders,
-  saveApiKey,
-  getApiKeyMasked,
-  hasApiKey,
-  deleteApiKey,
-} from '@/commands/llm'
+import { getSupportedProviders } from '@/commands/storage'
+import { saveApiKey, getApiKeyMasked, hasApiKey, deleteApiKey } from '@/commands/keys'
+import { useTemplateStore } from '@/stores/templates'
 
 function pid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -39,6 +35,17 @@ export const useSettingsStore = defineStore('settings', () => {
   const modelConfig = computed<ModelConfig>(() => {
     const p = presets.value.find((x) => x.id === activePresetId.value)
     return p?.config || defaultConfig()
+  })
+
+  // Config with template system prompt override (used by AI actions)
+  const templateStore = useTemplateStore()
+  const effectiveConfig = computed<ModelConfig>(() => {
+    const base = modelConfig.value
+    const activeTpl = templateStore.activeTemplate
+    if (activeTpl && activeTpl.systemPrompt) {
+      return { ...base, system_prompt: activeTpl.systemPrompt }
+    }
+    return base
   })
 
   const currentProvider = computed(() =>
@@ -89,7 +96,15 @@ export const useSettingsStore = defineStore('settings', () => {
       config: { ...modelConfig.value },
       providerConfigs: {},
     }
-    // Replace existing preset with same name
+    // If saving over the same named preset, replace it by name
+    const activeP = activePreset.value
+    if (activeP && (!name || name === activeP.name)) {
+      // User didn't specify a new name — treat as "save" on current preset
+      Object.assign(activeP, preset)
+      persist()
+      return activeP
+    }
+    // Otherwise, check if name already exists, and only then replace
     const idx = presets.value.findIndex((x) => x.name === preset.name)
     if (idx >= 0) {
       presets.value[idx] = preset
@@ -174,6 +189,7 @@ export const useSettingsStore = defineStore('settings', () => {
     presets,
     activePresetId,
     modelConfig,
+    effectiveConfig,
     maskedKeys,
     keyStatus,
     connectionStatus,

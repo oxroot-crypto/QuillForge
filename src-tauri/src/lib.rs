@@ -17,6 +17,38 @@ impl AppState {
             encryption_key: Mutex::new(None),
         }
     }
+
+    fn set_key(&self, key_bytes: [u8; 32]) {
+        *self.encryption_key.lock().unwrap() = Some(key_bytes);
+    }
+}
+
+/// Load existing key from store, or generate and persist a new one
+fn init_encryption_key(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let store = app.store("quillforge-secrets.json")?;
+    let state = app.state::<AppState>();
+
+    let existing = store.get("encryption_key");
+    let key_bytes: [u8; 32] = match existing {
+        Some(val) => {
+            let encoded = val.as_str().unwrap_or("");
+            let decoded = base64::engine::general_purpose::STANDARD.decode(encoded)?;
+            let mut key = [0u8; 32];
+            let len = decoded.len().min(32);
+            key[..len].copy_from_slice(&decoded[..len]);
+            key
+        }
+        None => {
+            let new_key = crypto::generate_key();
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&new_key);
+            store.set("encryption_key", serde_json::Value::String(encoded));
+            store.save()?;
+            new_key
+        }
+    };
+
+    state.set_key(key_bytes);
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,28 +59,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             app.manage(AppState::new());
-
-            let store = app.store("quillforge-secrets.json")?;
-            let key = store.get("encryption_key");
-
-            if key.is_none() {
-                let new_key = crypto::generate_key();
-                let encoded = base64::engine::general_purpose::STANDARD.encode(&new_key);
-                store.set("encryption_key", serde_json::Value::String(encoded));
-                store.save()?;
-                let state = app.state::<AppState>();
-                *state.encryption_key.lock().unwrap() = Some(new_key);
-            } else {
-                let encoded = key.unwrap().as_str().unwrap_or("").to_string();
-                if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&encoded) {
-                    let mut key_bytes = [0u8; 32];
-                    let len = decoded.len().min(32);
-                    key_bytes[..len].copy_from_slice(&decoded[..len]);
-                    let state = app.state::<AppState>();
-                    *state.encryption_key.lock().unwrap() = Some(key_bytes);
-                }
-            }
-
+            init_encryption_key(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -63,6 +74,17 @@ pub fn run() {
             commands::load_all_books,
             commands::delete_book_dir,
             commands::export_book_markdown,
+            // Phase 1: Version History
+            commands::save_snapshot,
+            commands::list_snapshots,
+            commands::get_snapshot_content,
+            commands::restore_snapshot,
+            // Phase 1: Spell Check
+            commands::spell_check_text,
+            // Phase 1: Full-Text Search
+            commands::index_chapter,
+            commands::remove_chapter_index,
+            commands::search_chapters,
         ])
         .run(tauri::generate_context!())
         .expect("Failed to launch");

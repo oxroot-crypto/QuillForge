@@ -20,9 +20,18 @@
       <template v-else>&#128161; {{ $t('ai.ideaBtn') }}</template>
     </button>
 
+    <!-- Cancel button -->
+    <button
+      v-if="editorStore.isLoading"
+      class="btn-cancel"
+      @click="onCancel"
+    >
+      {{ $t('common.cancel') }}
+    </button>
+
     <div v-if="editorStore.isLoading" class="idea-loading">
       <div class="idea-loading-bulb">&#128161;</div>
-      <div class="idea-loading-label">{{ $t('ai.ideaLloading') }}</div>
+      <div class="idea-loading-label">{{ $t('ai.ideaLoading') }}</div>
       <div class="idea-sparks">
         <span class="spark" :style="{ animationDelay: '0s' }">&#10022;</span>
         <span class="spark" :style="{ animationDelay: '0.3s' }">&#10022;</span>
@@ -32,19 +41,20 @@
       </div>
     </div>
 
-    <div v-if="editorStore.error" class="result-error">{{ editorStore.error }}</div>
+    <div v-if="editorStore.activeError" class="result-error">{{ editorStore.activeError }}</div>
 
     <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box markdown-body" v-html="renderedResult" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
-import { sendAiMessage } from '@/commands/llm'
+import { sendAiMessage } from '@/commands/ai'
 import LoadingDots from '@/components/common/LoadingDots.vue'
+import { focusEditor } from '@/extensions/ghost-text'
 
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
@@ -74,21 +84,40 @@ function buildBookContext(): string {
 async function doIdea() {
   if (!ideaInput.value.trim()) return
   editorStore.setLoading(true)
-  editorStore.setError('')
-  editorStore.setAiResult('')
+  editorStore.setAiResult('', 'idea')
+  editorStore.setError('', 'idea')
+  editorStore.resetCancel('idea')
   try {
-    const result = await sendAiMessage(settingsStore.modelConfig, {
+    const result = await sendAiMessage(settingsStore.effectiveConfig, {
       action: 'idea',
       content: ideaInput.value,
       context: buildBookContext(),
     })
-    editorStore.setAiResult(result)
-  } catch (e: any) {
-    editorStore.setError(e.toString())
+    if (editorStore.isCancelled('idea')) return
+    editorStore.setAiResult(result, 'idea')
+  } catch (e: unknown) {
+    if (!editorStore.isCancelled('idea')) {
+      editorStore.setError(String(e), 'idea')
+    }
   } finally {
     editorStore.setLoading(false)
+    editorStore.resetCancel('idea')
+    focusEditor()
   }
 }
+
+function onCancel() {
+  editorStore.cancelAction('idea')
+  editorStore.setLoading(false)
+  focusEditor()
+}
+
+onMounted(() => {
+  editorStore.registerActionHandler('idea', doIdea)
+})
+onBeforeUnmount(() => {
+  editorStore.unregisterActionHandler('idea')
+})
 </script>
 
 <style scoped>
@@ -172,6 +201,20 @@ async function doIdea() {
   line-height: 1.7;
   color: var(--color-text);
 }
+
+.btn-cancel {
+  width: 100%;
+  padding: 8px 16px;
+  border: 1px solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+.btn-cancel:hover { background: var(--color-danger-bg); }
 
 .idea-loading {
   background: var(--color-bg);

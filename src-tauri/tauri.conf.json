@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/tauri-schema/main/schema.json",
   "productName": "QuillForge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.quillforge.app",
   "build": {
     "frontendDist": "../dist",

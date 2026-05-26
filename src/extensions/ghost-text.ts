@@ -31,6 +31,34 @@ export function clearGhostText() {
   setGhostRaw(null)
 }
 
+export function focusEditor() {
+  if (_editorView) {
+    _editorView.focus()
+  }
+}
+
+/** Insert text at current cursor position */
+export function insertTextAtCursor(text: string) {
+  if (!_editorView) return
+  focusEditor()
+  const { from } = _editorView.state.selection
+  const tr = _editorView.state.tr.insertText(text, from)
+  _editorView.dispatch(tr)
+}
+
+/** Replace current selection with text, or insert at cursor if no selection */
+export function replaceSelection(text: string) {
+  if (!_editorView) return
+  focusEditor()
+  const { from, to } = _editorView.state.selection
+  if (from === to) {
+    insertTextAtCursor(text)
+    return
+  }
+  const tr = _editorView.state.tr.insertText(text, from, to)
+  _editorView.dispatch(tr)
+}
+
 export function setEditorView(editor: any) {
   _editorView = editor.view
 }

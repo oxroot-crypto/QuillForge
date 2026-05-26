@@ -193,3 +193,11 @@ select {
 [data-theme='dark'] .markdown-body em { color: #c4b5fd; }
 [data-theme='light'] .markdown-body strong { color: #1a1a2e; }
 [data-theme='light'] .markdown-body em { color: #6366f1; }
+
+/* ── Spell check decorations ── */
+.spell-error {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--color-danger);
+  text-underline-offset: 3px;
+}

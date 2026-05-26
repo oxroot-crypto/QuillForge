@@ -33,3 +33,6 @@ src-tauri/icons/mipmap-*/
 
 # Logs
 *.log
+
+# Claude Code
+.claude/

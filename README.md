@@ -33,7 +33,7 @@ QuillForge is a desktop application for web novel authors, combining a rich text
       <p>Hierarchical organization: books → chapters, with per-book world settings, story outlines, and character profiles that serve as AI context.</p>
     </td>
     <td width="50%">
-      <h4>🔍 AI Review</h4>
+      <h4>🔍 AI Review & Consistency Check</h4>
       <p>Select text and receive grammar, pacing, character consistency, and plot logic feedback with one click.</p>
     </td>
   </tr>
@@ -49,8 +49,8 @@ QuillForge is a desktop application for web novel authors, combining a rich text
   </tr>
   <tr>
     <td>
-      <h4>🌍 World-Building Generator</h4>
-      <p>Generate world settings and character profiles with structured AI output. Auto-parsed into editable form fields.</p>
+      <h4>⚡ AI Chapter Generation</h4>
+      <p>Generate full chapters from scratch with length control. Supports regeneration and re-apply without creating duplicate chapters.</p>
     </td>
     <td>
       <h4>🔌 Multi-Provider Support</h4>
@@ -65,6 +65,16 @@ QuillForge is a desktop application for web novel authors, combining a rich text
     <td>
       <h4>🎨 Dark & Light Themes</h4>
       <p>One-click toggle. Follows system preference by default.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>📊 Writing Analytics</h4>
+      <p>Sentence length distribution, dialogue ratio, readability score, word frequency, and per-book statistics.</p>
+    </td>
+    <td>
+      <h4>📝 Modern Editor</h4>
+      <p>TipTap with bubble menu formatting, focus mode, reading time estimate, spell check, and version snapshots.</p>
     </td>
   </tr>
 </table>
@@ -110,25 +120,41 @@ npm run tauri build
 ```
 ├── src/                          # Vue 3 frontend
 │   ├── components/
-│   │   ├── ai/                   # ReviewResult, IdeaResult, ContinueResult, AiPanel
-│   │   ├── common/               # AppLayout, TitleBar, LoadingDots
-│   │   ├── editor/               # NovelEditor, BookSidebar, BookSettingsPanel, CharacterPanel
+│   │   ├── ai/                   # AiPanel, ReviewResult, IdeaResult, ContinueResult, ConsistencyResult, GenChapterResult, TemplateSelector
+│   │   ├── analytics/            # AnalyticsPanel (writing statistics dashboard)
+│   │   ├── common/               # AppLayout, TitleBar, LoadingDots, ModalDialog, SearchDialog
+│   │   ├── editor/               # NovelEditor, BubbleMenu, BookSidebar, ChapterHistory, EditorToolbar, BookSettingsPanel, CharacterPanel
 │   │   └── settings/             # SettingsDialog, ProviderCard, ApiKeyInput
-│   ├── stores/                   # Pinia (book, editor, settings, theme, i18n)
-│   ├── commands/                 # Tauri invoke wrappers
-│   ├── extensions/               # TipTap GhostText extension
+│   ├── stores/                   # Pinia (book, editor, settings, template, theme, i18n)
+│   ├── commands/                 # Tauri invoke wrappers (by domain)
+│   │   ├── ai.ts                 # AI messages & connection check
+│   │   ├── history.ts            # Version snapshots (in-memory, persisted with book data)
+│   │   ├── keys.ts               # API key management
+│   │   ├── search.ts             # Full-text search index & query
+│   │   ├── storage.ts            # Persistence, providers, export
+│   │   └── index.ts              # Re-exports all commands
+│   ├── extensions/               # TipTap extensions (GhostText, SpellCheck)
 │   ├── i18n/locales/             # zh-CN, en-US
 │   └── types/                    # TypeScript definitions
 │
 ├── src-tauri/                    # Rust backend
 │   └── src/
-│       ├── commands.rs           # Tauri commands (AI, persistence, export)
+│       ├── commands/             # Tauri commands (by domain)
+│       │   ├── mod.rs            # Module declarations & re-exports
+│       │   ├── ai.rs             # AI message & connection check
+│       │   ├── keys.rs           # API key CRUD
+│       │   ├── books.rs          # Book persistence & export
+│       │   ├── history.rs        # Version snapshots (filesystem, fallback)
+│       │   ├── search.rs         # Full-text search (Tantivy)
+│       │   ├── spell.rs          # Spell check (Hunspell)
+│       │   └── helpers.rs        # Internal helpers
 │       ├── crypto.rs             # AES-256-GCM encrypt/decrypt
 │       └── llm/                  # Provider implementations (OpenAI, Anthropic, Ollama, compat)
 │
-├── package.json
+├── index.html
 ├── vite.config.ts
-└── tsconfig.json
+├── tsconfig.json
+└── package.json
 ```
 
 ## 📄 License

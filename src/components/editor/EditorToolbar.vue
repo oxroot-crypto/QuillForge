@@ -2,14 +2,11 @@
   <div class="toolbar">
     <div class="toolbar-group">
       <button
-        v-for="btn in actionButtons"
-        :key="btn.action"
         class="toolbar-btn"
-        :class="{ active: editorStore.activeAction === btn.action }"
-        :title="$t('ai.' + btn.action)"
-        @click="btn.onClick"
+        :title="$t('search.title')"
+        @click="$emit('openSearch')"
       >
-        {{ btn.icon }} {{ $t('ai.' + btn.action) }}
+        &#128269; {{ $t('search.title') }}
       </button>
     </div>
     <div class="toolbar-group toolbar-right">
@@ -34,18 +31,16 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { useEditorStore } from '@/stores/editor'
 import { useThemeStore } from '@/stores/theme'
 import { useI18nStore } from '@/stores/i18n'
 import { useSettingsStore } from '@/stores/settings'
-import type { AiAction } from '@/types'
 
 const emit = defineEmits<{
   openSettings: []
+  openSearch: []
 }>()
 
 const { locale } = useI18n()
-const editorStore = useEditorStore()
 const themeStore = useThemeStore()
 const i18nStore = useI18nStore()
 const settingsStore = useSettingsStore()
@@ -55,12 +50,6 @@ function onLangChange(e: Event) {
   i18nStore.setLocale(val)
   locale.value = val
 }
-
-const actionButtons = [
-  { action: 'review' as AiAction, icon: '\u{1F50D}', onClick: () => editorStore.setActiveAction('review') },
-  { action: 'idea' as AiAction, icon: '\u{1F4A1}', onClick: () => editorStore.setActiveAction('idea') },
-  { action: 'continue' as AiAction, icon: '\u{270D}', onClick: () => editorStore.setActiveAction('continue') },
-]
 </script>
 
 <style scoped>

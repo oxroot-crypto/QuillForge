@@ -173,7 +173,7 @@
 import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
-import { checkProviderConnection } from '@/commands/llm'
+import { checkProviderConnection } from '@/commands/ai'
 import ProviderCard from './ProviderCard.vue'
 import ApiKeyInput from './ApiKeyInput.vue'
 import ModalDialog from '@/components/common/ModalDialog.vue'
@@ -271,8 +271,8 @@ async function testConnection() {
   try {
     const msg = await checkProviderConnection(settingsStore.modelConfig)
     settingsStore.connectionStatus = msg
-  } catch (e: any) {
-    settingsStore.connectionStatus = `Connection failed: ${e}`
+  } catch (e: unknown) {
+    settingsStore.connectionStatus = `Connection failed: ${String(e)}`
   }
 }
 </script>

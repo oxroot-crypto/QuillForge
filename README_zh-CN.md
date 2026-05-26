@@ -33,7 +33,7 @@ QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编
       <p>层级组织：书籍 → 章节，每本书独立配置世界观、剧情总结、角色档案，自动作为 AI 上下文。</p>
     </td>
     <td width="50%">
-      <h4>🔍 AI 审阅</h4>
+      <h4>🔍 AI 审阅 & 一致性检查</h4>
       <p>选中文本一键审阅，从文法、节奏、角色一致性、情节逻辑等维度给出具体建议。</p>
     </td>
   </tr>
@@ -49,12 +49,12 @@ QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编
   </tr>
   <tr>
     <td>
-      <h4>📖 AI 生成章节</h4>
-      <p>一键生成完整章节，侧边栏显示生成中动画。AI 根据世界观、剧情总结和已有章节脉络自动续写。</p>
+      <h4>⚡ AI 生成章节</h4>
+      <p>AI 辅助面板中生成完整章节，支持提示词、篇幅选择。可重新生成并覆盖应用到同一章节。</p>
     </td>
     <td>
-      <h4>📝 剧情总结自动生成</h4>
-      <p>逐章分析情节，提炼连贯的故事总结。AI 遍历所有章节，以前文总结为上下文保证连续性。</p>
+      <h4>📊 写作分析</h4>
+      <p>句长分布、对话占比、易读性评分、高频词统计，以及全书统计概览。</p>
     </td>
   </tr>
   <tr>
@@ -63,8 +63,18 @@ QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编
       <p>OpenAI · Anthropic · Ollama · OpenAI 兼容（DeepSeek、Qwen、豆包等）。每个提供商独立记住模型名和 API 地址，切换时不丢配置。保存为命名预设，工具栏快速切换。</p>
     </td>
     <td>
-      <h4>🌍 国际化 & 🎨 主题</h4>
+      <h4>🌐 国际化 & 🎨 主题</h4>
       <p>简体中文 / English 实时切换。亮色 / 暗色一键切换，默认跟随系统。</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>📝 现代化编辑器</h4>
+      <p>TipTap 编辑器，支持 Bubble Menu 浮动工具栏、专注模式、阅读时间估算、拼写检查、版本快照。</p>
+    </td>
+    <td>
+      <h4>📦 提示词模板</h4>
+      <p>自定义 AI 提示词模板，按功能关联，支持导入/导出。</p>
     </td>
   </tr>
 </table>
@@ -110,25 +120,41 @@ npm run tauri build
 ```
 ├── src/                          # Vue 3 前端
 │   ├── components/
-│   │   ├── ai/                   # ReviewResult, IdeaResult, ContinueResult, AiPanel, AiLoadingState
-│   │   ├── common/               # AppLayout, TitleBar, LoadingDots, ModalDialog
-│   │   ├── editor/               # NovelEditor, BookSidebar, BookSettingsPanel, CharacterPanel
+│   │   ├── ai/                   # AiPanel, ReviewResult, IdeaResult, ContinueResult, ConsistencyResult, GenChapterResult, TemplateSelector
+│   │   ├── analytics/            # AnalyticsPanel（写作统计面板）
+│   │   ├── common/               # AppLayout, TitleBar, LoadingDots, ModalDialog, SearchDialog
+│   │   ├── editor/               # NovelEditor, BubbleMenu, BookSidebar, ChapterHistory, EditorToolbar, BookSettingsPanel, CharacterPanel
 │   │   └── settings/             # SettingsDialog, ProviderCard, ApiKeyInput
-│   ├── stores/                   # Pinia (book, editor, settings, theme, i18n)
-│   ├── commands/                 # Tauri invoke 封装
-│   ├── extensions/               # TipTap GhostText 扩展
+│   ├── stores/                   # Pinia (book, editor, settings, template, theme, i18n)
+│   ├── commands/                 # Tauri invoke 封装（按领域拆分）
+│   │   ├── ai.ts                 # AI 消息 & 连接检测
+│   │   ├── history.ts            # 版本快照（内存存储，随书籍数据持久化）
+│   │   ├── keys.ts               # API Key 管理
+│   │   ├── search.ts             # 全文搜索索引 & 检索
+│   │   ├── storage.ts            # 持久化、提供商列表、导出
+│   │   └── index.ts              # 重新导出所有命令
+│   ├── extensions/               # TipTap 自定义扩展 (GhostText, SpellCheck)
 │   ├── i18n/locales/             # zh-CN, en-US
 │   └── types/                    # TypeScript 类型定义
 │
 ├── src-tauri/                    # Rust 后端
 │   └── src/
-│       ├── commands.rs           # Tauri 命令 (AI、持久化、导出)
+│       ├── commands/             # Tauri 命令（按领域拆分）
+│       │   ├── mod.rs            # 模块声明 & 重新导出
+│       │   ├── ai.rs             # AI 消息 & 连接检测
+│       │   ├── keys.rs           # API Key CRUD
+│       │   ├── books.rs          # 书籍持久化 & 导出
+│       │   ├── history.rs        # 版本快照（文件系统，备选方案）
+│       │   ├── search.rs         # 全文搜索 (Tantivy)
+│       │   ├── spell.rs          # 拼写检查 (Hunspell)
+│       │   └── helpers.rs        # 内部辅助函数
 │       ├── crypto.rs             # AES-256-GCM 加解密
 │       └── llm/                  # 各提供商实现 (OpenAI, Anthropic, Ollama, compat)
 │
-├── package.json
+├── index.html
 ├── vite.config.ts
-└── tsconfig.json
+├── tsconfig.json
+└── package.json
 ```
 
 ## 📄 许可证

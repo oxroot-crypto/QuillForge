@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { Book, Chapter, Character } from '@/types'
-import { saveAllBooks, loadAllBooks } from '@/commands/llm'
+import { saveAllBooks, loadAllBooks } from '@/commands/storage'
+import { indexChapter, removeChapterIndex } from '@/commands/search'
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -25,9 +26,14 @@ function makeBook(title?: string): Book {
 export const useBookStore = defineStore('book', () => {
   const books = ref<Book[]>([])
   const activeBookId = ref<string>('')
+  const activeChapterId = ref<string>('')
 
   const activeBook = computed(() => books.value.find((b) => b.id === activeBookId.value))
   const activeBookChapters = computed(() => activeBook.value?.chapters || [])
+  const activeChapter = computed(() => {
+    if (!activeBook.value) return undefined
+    return activeBook.value.chapters.find((c) => c.id === activeChapterId.value)
+  })
 
   // ---- Book CRUD ----
   function createBook(title?: string): Book {
@@ -48,6 +54,18 @@ export const useBookStore = defineStore('book', () => {
 
   function selectBook(id: string) {
     activeBookId.value = id
+    activeChapterId.value = ''
+  }
+
+  function selectChapter(bookId: string, chapterId: string) {
+    const book = books.value.find((b) => b.id === bookId)
+    if (!book) return
+    const chapter = book.chapters.find((c) => c.id === chapterId)
+    if (!chapter) return
+    activeChapterId.value = chapterId
+    // Ensure this chapter is indexed for search
+    ensureIndexed(bookId, book.title, chapterId, chapter.title, chapter.content)
+    return chapter
   }
 
   function updateBookMeta(id: string, data: Partial<Pick<Book, 'title' | 'description' | 'worldSetting' | 'storySetting'>>) {
@@ -67,6 +85,7 @@ export const useBookStore = defineStore('book', () => {
       content: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      snapshots: [],
     }
     book.chapters.push(chapter)
     book.updatedAt = new Date().toISOString()
@@ -80,6 +99,7 @@ export const useBookStore = defineStore('book', () => {
     if (idx === -1) return
     book.chapters.splice(idx, 1)
     book.updatedAt = new Date().toISOString()
+    removeChapterFromIndex(bookId, chapterId)
   }
 
   function updateChapterContent(bookId: string, chapterId: string, content: string) {
@@ -90,6 +110,8 @@ export const useBookStore = defineStore('book', () => {
       chapter.content = content
       chapter.updatedAt = new Date().toISOString()
       book.updatedAt = new Date().toISOString()
+      // Auto-index (fire-and-forget)
+      scheduleIndex(bookId, book.title, chapterId, chapter.title, content)
     }
   }
 
@@ -158,10 +180,13 @@ export const useBookStore = defineStore('book', () => {
 
   // ---- Persistence ----
   let saveTimer: ReturnType<typeof setTimeout> | null = null
+  let lastSavedSnapshot: string = ''
 
   async function saveToDisk() {
     try {
       const json = JSON.stringify(books.value)
+      if (json === lastSavedSnapshot) return // Skip if unchanged
+      lastSavedSnapshot = json
       await saveAllBooks(json)
     } catch (e) {
       console.error('自动保存失败:', e)
@@ -179,9 +204,12 @@ export const useBookStore = defineStore('book', () => {
       if (json && json.length > 2) {
         const parsed = JSON.parse(json) as Book[]
         books.value = parsed
+        lastSavedSnapshot = json
         if (parsed.length > 0) {
           activeBookId.value = parsed[0].id
         }
+        // Index all chapters for search immediately after loading
+        indexAllChapters()
       }
     } catch (e) {
       console.error('加载数据失败:', e)
@@ -197,14 +225,55 @@ export const useBookStore = defineStore('book', () => {
     )
   }
 
+  // ---- Auto-index (debounced) ----
+  let indexTimer: ReturnType<typeof setTimeout> | null = null
+  const indexedChapters = new Set<string>()
+
+  function ensureIndexed(bookId: string, bookTitle: string, chapterId: string, chapterTitle: string, content: string) {
+    const key = `${bookId}:${chapterId}`
+    if (indexedChapters.has(key)) return
+    indexedChapters.add(key)
+    indexChapter(bookId, bookTitle, chapterId, chapterTitle, content).catch((e) =>
+      console.error('索引失败:', e),
+    )
+  }
+
+  function indexAllChapters() {
+    for (const book of books.value) {
+      for (const chapter of book.chapters) {
+        ensureIndexed(book.id, book.title, chapter.id, chapter.title, chapter.content)
+      }
+    }
+  }
+
+  function scheduleIndex(bookId: string, bookTitle: string, chapterId: string, chapterTitle: string, content: string) {
+    if (indexTimer) clearTimeout(indexTimer)
+    indexTimer = setTimeout(async () => {
+      try {
+        await indexChapter(bookId, bookTitle, chapterId, chapterTitle, content)
+      } catch (e) {
+        console.error('索引更新失败:', e)
+      }
+    }, 2000)
+  }
+
+  function removeChapterFromIndex(bookId: string, chapterId: string) {
+    removeChapterIndex(bookId, chapterId).catch((e) =>
+      console.error('索引删除失败:', e),
+    )
+  }
+
   return {
     books,
     activeBookId,
+    activeChapterId,
     activeBook,
     activeBookChapters,
+    activeChapter,
     createBook,
     deleteBook,
     selectBook,
+    selectChapter,
     updateBookMeta,
     createChapter,
     deleteChapter,
@@ -217,5 +286,6 @@ export const useBookStore = defineStore('book', () => {
     getBookStats,
     saveToDisk,
     loadFromDisk,
+    removeChapterFromIndex,
   }
 })
