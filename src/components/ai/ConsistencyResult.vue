@@ -6,7 +6,7 @@
 
     <button
       class="btn-action"
-      :disabled="!editorStore.hasSelection || editorStore.isLoading"
+      :disabled="editorStore.isLoading || !bookStore.activeChapterId"
       @click="doConsistencyCheck"
     >
       <LoadingDots v-if="editorStore.isLoading" />
@@ -21,9 +21,10 @@
       {{ $t('common.cancel') }}
     </button>
 
-    <div v-if="editorStore.selectedText && !editorStore.isLoading" class="selected-preview">
-      <div class="preview-label">{{ $t('ai.selected', { count: editorStore.selectedText.length }) }}</div>
-      <div class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
+    <div v-if="!editorStore.isLoading" class="selected-preview">
+      <div v-if="editorStore.selectedText" class="preview-label">{{ $t('ai.selected', { count: editorStore.selectedText.length }) }}</div>
+      <div v-else class="preview-label">{{ $t('ai.reviewFullChapter') }}</div>
+      <div v-if="editorStore.selectedText" class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
     </div>
 
     <div v-if="editorStore.isLoading" class="consistency-loading">
@@ -103,11 +104,18 @@ function buildBookContext(): string {
     ...book.characters.filter((c) => c.name).map(
       (c) => `【角色·${c.role === 'protagonist' ? '主角' : c.role === 'antagonist' ? '反派' : c.role === 'supporting' ? '配角' : '路人'}】${c.name}：${c.description || '(无描述)'}`,
     ),
+    bookStore.buildOutlineContext(),
   ].filter(Boolean).join('\n')
 }
 
+function getConsistencyContent(): string {
+  if (editorStore.selectedText) return editorStore.selectedText
+  return editorStore.content.replace(/<[^>]*>/g, '')
+}
+
 async function doConsistencyCheck() {
-  if (!editorStore.selectedText) return
+  const content = getConsistencyContent()
+  if (!content.trim()) return
   editorStore.setLoading(true)
   editorStore.setAiResult('', 'consistency')
   editorStore.setError('', 'consistency')
@@ -116,7 +124,7 @@ async function doConsistencyCheck() {
     const bookCtx = buildBookContext()
     const result = await sendAiMessage(settingsStore.effectiveConfig, {
       action: 'consistency',
-      content: editorStore.selectedText,
+      content,
       context: bookCtx || undefined,
     })
     if (editorStore.isCancelled('consistency')) return

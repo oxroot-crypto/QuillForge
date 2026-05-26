@@ -1,10 +1,10 @@
 <template>
   <div class="action-panel">
     <div class="action-info">
-      <p>{{ $t('ai.genChapterHint') }}</p>
+      <p>{{ $t('ai.rewriteHint') }}</p>
     </div>
 
-    <!-- No chapter selected warning -->
+    <!-- No chapter warning -->
     <div v-if="!hasActiveChapter" class="no-chapter-warning">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
@@ -15,29 +15,25 @@
     <textarea
       v-model="userPrompt"
       class="gen-input"
-      :placeholder="$t('ai.genChapterPlaceholder')"
+      :placeholder="$t('ai.rewritePlaceholder')"
       rows="3"
     />
 
-    <div class="gen-options">
-      <label class="option-label">{{ $t('ai.genChapterLength') }}</label>
-      <select v-model="lengthOption" class="style-select">
-        <option value="short">{{ $t('ai.genLengthShort') }}</option>
-        <option value="medium">{{ $t('ai.genLengthMedium') }}</option>
-        <option value="long">{{ $t('ai.genLengthLong') }}</option>
-      </select>
+    <div v-if="!editorStore.isLoading" class="selected-preview">
+      <div v-if="editorStore.selectedText" class="preview-label">{{ $t('ai.selected', { count: editorStore.selectedText.length }) }}</div>
+      <div v-else class="preview-label">{{ $t('ai.reviewFullChapter') }}</div>
+      <div v-if="editorStore.selectedText" class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
     </div>
 
     <button
       class="btn-action"
       :disabled="editorStore.isLoading || !hasActiveChapter"
-      @click="doGenerate"
+      @click="doRewrite"
     >
       <LoadingDots v-if="editorStore.isLoading" />
-      <template v-else>&#9889; {{ $t('ai.genChapterBtn') }}</template>
+      <template v-else>&#128393; {{ $t('ai.rewriteBtn') }}</template>
     </button>
 
-    <!-- Cancel button -->
     <button
       v-if="editorStore.isLoading"
       class="btn-cancel"
@@ -47,8 +43,8 @@
     </button>
 
     <div v-if="editorStore.isLoading" class="gen-loading">
-      <div class="gen-loading-icon">&#9889;</div>
-      <div class="gen-loading-label">{{ $t('ai.genChapterLoading') }}</div>
+      <div class="gen-loading-icon">&#128393;</div>
+      <div class="gen-loading-label">{{ $t('ai.rewriteLoading') }}</div>
     </div>
 
     <div v-if="editorStore.activeError" class="result-error">{{ editorStore.activeError }}</div>
@@ -59,7 +55,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        <span>{{ $t('ai.genChapterApplied', { title: appliedTitle }) }}</span>
+        <span>{{ $t('ai.rewriteApplied') }}</span>
         <span class="applied-words">{{ appliedWords }} {{ $t('history.words') }}</span>
       </div>
       <div class="markdown-body" v-html="renderedContent" />
@@ -73,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
@@ -87,11 +83,9 @@ const settingsStore = useSettingsStore()
 const bookStore = useBookStore()
 
 const userPrompt = ref('')
-const lengthOption = ref('medium')
 
 // Result state (auto-applied)
 const autoApplied = ref(false)
-const appliedTitle = ref('')
 const appliedWords = ref(0)
 const rawContent = ref('')
 
@@ -107,49 +101,29 @@ const renderedContent = computed(() => {
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
 })
 
-function buildContext(): string {
+function buildBookContext(): string {
   const book = bookStore.activeBook
   if (!book) return ''
-  const parts: string[] = []
-  if (book.worldSetting) parts.push(`【世界观】${book.worldSetting}`)
-  if (book.storySetting) parts.push(`【剧情总结】${book.storySetting}`)
-  const outlineCtx = bookStore.buildOutlineContext()
-  if (outlineCtx) parts.push(outlineCtx)
-  if (book.characters.length > 0) {
-    const chars = book.characters
-      .filter((c) => c.name)
-      .map((c) => `【${c.role}】${c.name}：${c.description}`)
-      .join('\n')
-    if (chars) parts.push(`【角色】\n${chars}`)
-  }
-  if (book.chapters.length > 0) {
-    const titles = book.chapters.map((c, i) =>
-      `${i + 1}. ${c.title}（${c.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length}字）`
-    ).join('\n')
-    parts.push(`【已有章节】\n${titles}`)
-    // Include last chapter content for continuity
-    const lastChapter = book.chapters[book.chapters.length - 1]
-    if (lastChapter) {
-      const lastText = lastChapter.content.replace(/<[^>]*>/g, '').slice(-1000)
-      parts.push(`【上一章末尾】${lastText}`)
-    }
-  }
-  return parts.join('\n\n')
+  return [
+    book.worldSetting ? `【世界观】${book.worldSetting}` : '',
+    book.storySetting ? `【剧情总结】${book.storySetting}` : '',
+    ...book.characters.filter((c) => c.name && c.description).map(
+      (c) => `【角色】${c.name}(${c.role})：${c.description}`,
+    ),
+    bookStore.buildOutlineContext(),
+  ].filter(Boolean).join('\n')
 }
 
-function getLengthHint(): string {
-  switch (lengthOption.value) {
-    case 'short': return '篇幅约300-500字，紧凑简洁。'
-    case 'long': return '篇幅约1500-2500字，详细展开。'
-    default: return '篇幅约800-1200字，适中。'
-  }
+function getRewriteContent(): string {
+  if (editorStore.selectedText) return editorStore.selectedText
+  return editorStore.content.replace(/<[^>]*>/g, '')
 }
 
 function countWords(html: string): number {
   return html.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
 }
 
-async function doGenerate() {
+async function doRewrite() {
   const book = bookStore.activeBook
   const chapterId = bookStore.activeChapterId
   if (!book || !chapterId) return
@@ -157,80 +131,67 @@ async function doGenerate() {
   const chapter = book.chapters.find((c) => c.id === chapterId)
   if (!chapter) return
 
+  const content = getRewriteContent()
+  if (!content.trim()) return
+
   editorStore.setLoading(true)
-  editorStore.setAiResult('', 'gen_chapter')
-  editorStore.setError('', 'gen_chapter')
-  editorStore.resetCancel('gen_chapter')
+  editorStore.setAiResult('', 'rewrite')
+  editorStore.setError('', 'rewrite')
+  editorStore.resetCancel('rewrite')
   autoApplied.value = false
-  appliedTitle.value = ''
   appliedWords.value = 0
   rawContent.value = ''
 
   try {
-    const ctx = buildContext()
+    const bookCtx = buildBookContext()
     const userHint = userPrompt.value.trim()
-      ? `\n\n用户特别要求：${userPrompt.value.trim()}`
+      ? `\n\n改写要求：${userPrompt.value.trim()}`
       : ''
-    const prompt = `${getLengthHint()}${userHint}\n\n请根据上述设定续写当前章节。`
+    const prompt = `${content}\n\n${userHint}`
 
     const result = await sendAiMessage(settingsStore.effectiveConfig, {
-      action: 'gen_chapter',
+      action: 'rewrite',
       content: prompt,
-      context: ctx || undefined,
+      context: bookCtx || undefined,
     })
 
-    if (editorStore.isCancelled('gen_chapter')) {
-      editorStore.resetCancel('gen_chapter')
+    if (editorStore.isCancelled('rewrite')) {
+      editorStore.resetCancel('rewrite')
       return
     }
 
-    const raw = result.trim()
-    const lines = raw.split('\n')
-    let title = ''
-    let body = raw
-    const titleMatch = lines[0].match(/^#\s+(.+)/)
-    if (titleMatch) {
-      title = titleMatch[1].trim()
-      let bodyStart = 1
-      while (bodyStart < lines.length && lines[bodyStart].trim() === '') bodyStart++
-      body = lines.slice(bodyStart).join('\n').trim()
-    }
-    if (!title) title = chapter.title || `${book.chapters.length}`
-
-    const htmlBody = body
+    const htmlBody = result.trim()
       .split(/\n\n+/)
       .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
       .join('')
 
     const wc = countWords(htmlBody)
-    appliedTitle.value = title
     appliedWords.value = wc
     rawContent.value = htmlBody
 
     // Auto-save snapshot of current content before replacing
     if (chapter.content) {
-      await saveSnapshot(book.id, chapter.id, chapter.content, 'AI 生成前自动保存', chapter.title)
+      await saveSnapshot(book.id, chapter.id, chapter.content, 'AI 改写前自动保存', chapter.title)
     }
 
     // Auto-apply
-    bookStore.renameChapter(book.id, chapter.id, title)
     bookStore.updateChapterContent(book.id, chapter.id, htmlBody)
     bookStore.selectChapter(book.id, chapter.id)
     editorStore.updateContent(htmlBody)
     autoApplied.value = true
   } catch (e: unknown) {
-    if (!editorStore.isCancelled('gen_chapter')) {
-      editorStore.setError(String(e), 'gen_chapter')
+    if (!editorStore.isCancelled('rewrite')) {
+      editorStore.setError(String(e), 'rewrite')
     }
   } finally {
     editorStore.setLoading(false)
-    editorStore.resetCancel('gen_chapter')
+    editorStore.resetCancel('rewrite')
     focusEditor()
   }
 }
 
 function onCancel() {
-  editorStore.cancelAction('gen_chapter')
+  editorStore.cancelAction('rewrite')
   editorStore.setLoading(false)
   focusEditor()
 }
@@ -241,84 +202,62 @@ async function onRegenerate() {
   if (!book || !chapterId) return
 
   editorStore.setLoading(true)
-  editorStore.setAiResult('', 'gen_chapter')
-  editorStore.setError('', 'gen_chapter')
-  editorStore.resetCancel('gen_chapter')
+  editorStore.setAiResult('', 'rewrite')
+  editorStore.setError('', 'rewrite')
+  editorStore.resetCancel('rewrite')
   autoApplied.value = false
-  appliedTitle.value = ''
   appliedWords.value = 0
   rawContent.value = ''
 
   try {
-    const ctx = buildContext()
+    const content = getRewriteContent()
+    if (!content.trim()) return
+
+    const bookCtx = buildBookContext()
     const userHint = userPrompt.value.trim()
-      ? `\n\n用户特别要求：${userPrompt.value.trim()}`
+      ? `\n\n改写要求：${userPrompt.value.trim()}`
       : ''
-    const prompt = `${getLengthHint()}${userHint}\n\n请根据上述设定重新生成当前章节内容，与之前生成的不同。`
+    const prompt = `${content}\n\n${userHint}\n\n请用不同的风格重新改写一遍，与上次不同。`
 
     const result = await sendAiMessage(settingsStore.effectiveConfig, {
-      action: 'gen_chapter',
+      action: 'rewrite',
       content: prompt,
-      context: ctx || undefined,
+      context: bookCtx || undefined,
     })
 
-    if (editorStore.isCancelled('gen_chapter')) {
-      editorStore.resetCancel('gen_chapter')
+    if (editorStore.isCancelled('rewrite')) {
+      editorStore.resetCancel('rewrite')
       return
     }
 
-    const raw = result.trim()
-    const lines = raw.split('\n')
-    let title = ''
-    let body = raw
-    const titleMatch = lines[0].match(/^#\s+(.+)/)
-    if (titleMatch) {
-      title = titleMatch[1].trim()
-      let bodyStart = 1
-      while (bodyStart < lines.length && lines[bodyStart].trim() === '') bodyStart++
-      body = lines.slice(bodyStart).join('\n').trim()
-    }
-    if (!title) title = book.chapters.find((c) => c.id === chapterId)?.title || `${book.chapters.length}`
-
-    const htmlBody = body
+    const htmlBody = result.trim()
       .split(/\n\n+/)
       .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
       .join('')
 
+    const chapter = book.chapters.find((c) => c.id === chapterId)
+    if (chapter?.content) {
+      await saveSnapshot(book.id, chapterId, chapter.content, 'AI 改写重新生成前自动保存', chapter.title)
+    }
+
     const wc = countWords(htmlBody)
-    appliedTitle.value = title
     appliedWords.value = wc
     rawContent.value = htmlBody
 
-    // Auto-save snapshot of current content before replacing
-    const chapter = book.chapters.find((c) => c.id === chapterId)
-    if (chapter?.content) {
-      await saveSnapshot(book.id, chapterId, chapter.content, 'AI 重新生成前自动保存', chapter.title)
-    }
-
-    // Auto-apply
-    bookStore.renameChapter(book.id, chapterId, title)
     bookStore.updateChapterContent(book.id, chapterId, htmlBody)
     bookStore.selectChapter(book.id, chapterId)
     editorStore.updateContent(htmlBody)
     autoApplied.value = true
   } catch (e: unknown) {
-    if (!editorStore.isCancelled('gen_chapter')) {
-      editorStore.setError(String(e), 'gen_chapter')
+    if (!editorStore.isCancelled('rewrite')) {
+      editorStore.setError(String(e), 'rewrite')
     }
   } finally {
     editorStore.setLoading(false)
-    editorStore.resetCancel('gen_chapter')
+    editorStore.resetCancel('rewrite')
     focusEditor()
   }
 }
-
-// Watch for action execution from keyboard shortcut
-watch(() => editorStore.activeAction, (action) => {
-  if (action === 'gen_chapter' && userPrompt.value.trim() && hasActiveChapter.value) {
-    doGenerate()
-  }
-})
 </script>
 
 <style scoped>
@@ -336,6 +275,19 @@ watch(() => editorStore.activeAction, (action) => {
   line-height: 1.55;
 }
 
+.no-chapter-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid #fbbf24;
+}
+
 .gen-input {
   width: 100%;
   padding: 10px 12px;
@@ -350,88 +302,55 @@ watch(() => editorStore.activeAction, (action) => {
   font-family: inherit;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-
 .gen-input:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-light);
 }
-
 .gen-input::placeholder {
   color: var(--color-text-muted);
   opacity: 0.55;
 }
 
-.gen-options {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.selected-preview {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
 }
 
-.option-label {
-  font-size: 0.75rem;
-  font-weight: 600;
+.preview-label {
+  font-size: 0.7rem;
   color: var(--color-text-muted);
+  margin-bottom: 6px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.style-select {
-  padding: 8px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
+.preview-text {
+  font-size: 0.8rem;
   color: var(--color-text);
-  font-size: 0.84rem;
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%238888a8' d='M2.5 3.5l2.5 3 2.5-3'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 28px;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.style-select:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-light);
-}
-
-.no-chapter-warning {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 0.78rem;
-  font-weight: 500;
-  border: 1px solid #fbbf24;
+  line-height: 1.55;
 }
 
 .btn-action {
   width: 100%;
   padding: 10px 16px;
   border: none;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
   color: #fff;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.88rem;
   font-weight: 600;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
-
 .btn-action:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
 }
-
-.btn-action:active:not(:disabled) {
-  transform: translateY(0);
-}
+.btn-action:active:not(:disabled) { transform: translateY(0); }
 
 .btn-cancel {
   width: 100%;
@@ -445,10 +364,7 @@ watch(() => editorStore.activeAction, (action) => {
   font-weight: 500;
   transition: all var(--transition-fast);
 }
-
-.btn-cancel:hover {
-  background: var(--color-danger-bg);
-}
+.btn-cancel:hover { background: var(--color-danger-bg); }
 
 .result-error {
   background: var(--color-danger-bg);
@@ -469,21 +385,14 @@ watch(() => editorStore.activeAction, (action) => {
   align-items: center;
   gap: 10px;
 }
-
 .gen-loading-icon { font-size: 1.8rem; animation: pulse 1.2s ease-in-out infinite; }
-.gen-loading-label { font-size: 0.78rem; color: #d97706; font-weight: 600; }
+.gen-loading-label { font-size: 0.78rem; color: #6366f1; font-weight: 600; }
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 0.7; }
   50% { transform: scale(1.1); opacity: 1; }
 }
 
-.btn-retry {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-/* ── Auto-applied result ── */
 .applied-box {
   background: var(--color-bg);
   border: 1px solid var(--color-border);

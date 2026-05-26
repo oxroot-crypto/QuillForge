@@ -36,8 +36,19 @@
           <span class="history-time">{{ formatTime(snap.timestamp) }}</span>
         </div>
         <div class="history-meta">
+          <span class="history-title">{{ snap.title }}</span>
           <span class="history-words">{{ snap.word_count }} {{ $t('history.words') }}</span>
         </div>
+        <button
+          class="btn-delete-snapshot"
+          :title="t('common.delete')"
+          @click.stop="onDeleteSnapshot(snap)"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -75,7 +86,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBookStore } from '@/stores/book'
 import { useEditorStore } from '@/stores/editor'
-import { saveSnapshot, listSnapshots, getSnapshotContent, restoreSnapshot } from '@/commands/history'
+import { saveSnapshot, listSnapshots, getSnapshotData, deleteSnapshot } from '@/commands/history'
 import type { SnapshotInfo } from '@/commands/history'
 
 defineEmits<{ close: [] }>()
@@ -111,7 +122,7 @@ async function onSaveSnapshot() {
   try {
     const chapter = bookStore.activeChapter
     if (!chapter) return
-    await saveSnapshot(bookStore.activeBookId, bookStore.activeChapterId, chapter.content, chapter.title)
+    await saveSnapshot(bookStore.activeBookId, bookStore.activeChapterId, chapter.content, chapter.title, chapter.title)
     await loadSnapshots()
   } catch (e: unknown) {
     error.value = String(e)
@@ -120,16 +131,31 @@ async function onSaveSnapshot() {
   }
 }
 
+async function onDeleteSnapshot(snap: SnapshotInfo) {
+  if (!bookStore.activeBookId || !bookStore.activeChapterId) return
+  try {
+    await deleteSnapshot(bookStore.activeBookId, bookStore.activeChapterId, snap.timestamp)
+    if (previewTimestamp.value === snap.timestamp) {
+      previewContent.value = null
+      confirmRestore.value = false
+    }
+    await loadSnapshots()
+  } catch (e: unknown) {
+    error.value = String(e)
+  }
+}
+
 async function onPreview(snap: SnapshotInfo) {
   if (!bookStore.activeBookId || !bookStore.activeChapterId) return
   confirmRestore.value = false
   previewTimestamp.value = snap.timestamp
   try {
-    previewContent.value = await getSnapshotContent(
+    const data = await getSnapshotData(
       bookStore.activeBookId,
       bookStore.activeChapterId,
       snap.timestamp,
     )
+    previewContent.value = data.content
   } catch (e: unknown) {
     error.value = String(e)
   }
@@ -138,14 +164,15 @@ async function onPreview(snap: SnapshotInfo) {
 async function onRestore() {
   if (!bookStore.activeBookId || !bookStore.activeChapterId || !previewTimestamp.value) return
   try {
-    const content = await restoreSnapshot(
+    const data = await getSnapshotData(
       bookStore.activeBookId,
       bookStore.activeChapterId,
       previewTimestamp.value,
     )
     // Update store and editor
-    bookStore.updateChapterContent(bookStore.activeBookId, bookStore.activeChapterId, content)
-    editorStore.updateContent(content)
+    bookStore.renameChapter(bookStore.activeBookId, bookStore.activeChapterId, data.title)
+    bookStore.updateChapterContent(bookStore.activeBookId, bookStore.activeChapterId, data.content)
+    editorStore.updateContent(data.content)
     confirmRestore.value = false
     previewContent.value = null
     await loadSnapshots()
@@ -267,18 +294,41 @@ onMounted(loadSnapshots)
 }
 
 .history-item {
+  display: flex;
+  flex-direction: column;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--transition-fast);
   border: 1px solid transparent;
   margin-bottom: 4px;
+  position: relative;
 }
 .history-item:hover { background: var(--color-hover); }
 .history-item.active {
   background: var(--color-accent-light);
   border-color: var(--color-accent);
 }
+
+.btn-delete-snapshot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+.history-item:hover .btn-delete-snapshot { opacity: 1; }
+.btn-delete-snapshot:hover { background: var(--color-danger-bg); color: var(--color-danger); }
 
 .history-item-header {
   display: flex;
@@ -299,8 +349,20 @@ onMounted(loadSnapshots)
 }
 
 .history-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.7rem;
   color: var(--color-text-muted);
+}
+
+.history-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }
 
 .history-preview {

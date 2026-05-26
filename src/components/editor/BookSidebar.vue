@@ -21,6 +21,7 @@
           <span class="book-item-meta">{{ book.chapters.length }}{{ $t('book.chUnit') }} · {{ bookStats(book.id) }}{{ $t('book.wordUnit') }}</span>
         </div>
         <div class="book-item-actions">
+          <button class="btn-action-mini" :title="$t('book.outline')" @click.stop="onOpenOutline(book)">&#128196;</button>
           <button class="btn-action-mini" :title="$t('book.rename')" @click.stop="startRename(book)">&#9998;</button>
           <button class="btn-action-mini btn-action-danger" :title="$t('book.deleteBook')" @click.stop="onDeleteBook(book)">&times;</button>
         </div>
@@ -150,6 +151,17 @@
       @cancel="modal.visible = false"
       @update:visible="(v: boolean) => modal.visible = v"
     />
+
+    <CreateBookDialog
+      v-if="showCreateDialog"
+      @confirm="onBookCreateResult"
+      @cancel="onBookCreateCancelled"
+    />
+
+    <OutlineDialog
+      v-if="showOutline && bookStore.activeBook"
+      @close="showOutline = false"
+    />
   </div>
 </template>
 
@@ -161,6 +173,8 @@ import { useEditorStore } from '@/stores/editor'
 import { exportBookMarkdown } from '@/commands/storage'
 import type { Book } from '@/types'
 import ModalDialog from '@/components/common/ModalDialog.vue'
+import CreateBookDialog from '@/components/common/CreateBookDialog.vue'
+import OutlineDialog from '@/components/common/OutlineDialog.vue'
 import BookSettingsPanel from '@/components/editor/BookSettingsPanel.vue'
 import CharacterPanel from '@/components/editor/CharacterPanel.vue'
 
@@ -170,6 +184,8 @@ const editorStore = useEditorStore()
 
 const showSettings = ref(false)
 const showCharacters = ref(false)
+const showCreateDialog = ref(false)
+const showOutline = ref(false)
 const editingBook = ref<Book | null>(null)
 const editTitle = ref('')
 const renameInput = ref<HTMLInputElement | null>(null)
@@ -241,12 +257,54 @@ function selectBook(id: string) {
   showCharacters.value = false
 }
 
-async function onCreateBook() {
-  const name = await showModal('prompt', t('book.newBookPrompt'), { value: t('book.defaultBookName') })
-  if (name) {
-    bookStore.createBook(name as string)
-    showSettings.value = true
+function onCreateBook() {
+  showCreateDialog.value = true
+}
+
+function mapRole(role: string): string {
+  const roleMap: Record<string, string> = {
+    '主角': 'protagonist',
+    '配角': 'supporting',
+    '反派': 'antagonist',
+    '路人': 'background',
   }
+  return roleMap[role] || role || 'supporting'
+}
+
+function onBookCreateResult(result: { title: string; description?: string; worldSetting?: string; characters?: Array<{ name: string; role: string; description: string }> }) {
+  showCreateDialog.value = false
+  const book = bookStore.createBook(result.title)
+  // Apply generated book info
+  if (result.description || result.worldSetting) {
+    bookStore.updateBookMeta(book.id, {
+      description: result.description || '',
+      worldSetting: result.worldSetting || '',
+    })
+  }
+  // Add generated characters
+  if (result.characters && result.characters.length > 0) {
+    for (const ch of result.characters) {
+      if (ch.name.trim()) {
+        bookStore.addCharacter({
+          name: ch.name,
+          role: mapRole(ch.role),
+          description: ch.description,
+        })
+      }
+    }
+  }
+  showSettings.value = true
+}
+
+function onBookCreateCancelled() {
+  showCreateDialog.value = false
+}
+
+function onOpenOutline(book: Book) {
+  bookStore.selectBook(book.id)
+  showSettings.value = false
+  showCharacters.value = false
+  showOutline.value = true
 }
 
 function startRename(book: Book) {

@@ -70,6 +70,7 @@ pub fn run() {
             commands::delete_api_key,
             commands::get_supported_providers,
             commands::check_provider_connection,
+            commands::generate_book_info,
             commands::save_all_books,
             commands::load_all_books,
             commands::delete_book_dir,

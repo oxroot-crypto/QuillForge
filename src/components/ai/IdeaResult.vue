@@ -77,6 +77,7 @@ function buildBookContext(): string {
     ...book.characters.filter((c) => c.name && c.description).map(
       (c) => `【角色·${c.role === 'protagonist' ? '主角' : c.role === 'antagonist' ? '反派' : '配角'}】${c.name}：${c.description}`,
     ),
+    bookStore.buildOutlineContext(),
     editorStore.content.replace(/<[^>]*>/g, '').slice(-500) ? `【近文上下文】${editorStore.content.replace(/<[^>]*>/g, '').slice(-500)}` : '',
   ].filter(Boolean).join('\n')
 }

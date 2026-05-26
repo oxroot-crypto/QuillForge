@@ -5,6 +5,7 @@ export interface SnapshotInfo {
   timestamp: string
   label: string
   word_count: number
+  title: string
 }
 
 function countWords(html: string): number {
@@ -19,6 +20,7 @@ export async function saveSnapshot(
   chapterId: string,
   content: string,
   label: string,
+  title?: string,
 ): Promise<string> {
   const store = useBookStore()
   const book = store.books.find((b) => b.id === bookId)
@@ -31,6 +33,7 @@ export async function saveSnapshot(
     timestamp,
     label,
     word_count: countWords(content),
+    title: title || chapter.title,
     content,
   }
 
@@ -63,14 +66,36 @@ export async function listSnapshots(
       timestamp: s.timestamp,
       label: s.label,
       word_count: s.word_count,
+      title: s.title || '',
     }))
 }
 
-export async function getSnapshotContent(
+export interface SnapshotData {
+  title: string
+  content: string
+}
+
+export async function deleteSnapshot(
   bookId: string,
   chapterId: string,
   timestamp: string,
-): Promise<string> {
+): Promise<void> {
+  const store = useBookStore()
+  const book = store.books.find((b) => b.id === bookId)
+  if (!book) throw new Error('Book not found')
+  const chapter = book.chapters.find((c) => c.id === chapterId)
+  if (!chapter || !chapter.snapshots) throw new Error('Snapshot not found')
+
+  const idx = chapter.snapshots.findIndex((s: Snapshot) => s.timestamp === timestamp)
+  if (idx === -1) throw new Error('Snapshot not found')
+  chapter.snapshots.splice(idx, 1)
+}
+
+export async function getSnapshotData(
+  bookId: string,
+  chapterId: string,
+  timestamp: string,
+): Promise<SnapshotData> {
   const store = useBookStore()
   const book = store.books.find((b) => b.id === bookId)
   if (!book) throw new Error('Book not found')
@@ -80,13 +105,5 @@ export async function getSnapshotContent(
   const snap = chapter.snapshots.find((s: Snapshot) => s.timestamp === timestamp)
   if (!snap) throw new Error('Snapshot not found')
 
-  return snap.content
-}
-
-export async function restoreSnapshot(
-  bookId: string,
-  chapterId: string,
-  timestamp: string,
-): Promise<string> {
-  return getSnapshotContent(bookId, chapterId, timestamp)
+  return { title: snap.title || '', content: snap.content }
 }

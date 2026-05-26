@@ -89,7 +89,9 @@
               <option value="review">{{ $t('ai.review') }}</option>
               <option value="idea">{{ $t('ai.idea') }}</option>
               <option value="continue">{{ $t('ai.continue') }}</option>
+              <option value="rewrite">{{ $t('ai.rewrite') }}</option>
               <option value="consistency">{{ $t('ai.consistency') }}</option>
+              <option value="gen_chapter">{{ $t('ai.genChapter') }}</option>
             </select>
           </label>
           <label class="field">
@@ -170,7 +172,9 @@ function getActionLabel(action: string): string {
     review: t('ai.review'),
     idea: t('ai.idea'),
     continue: t('ai.continue'),
+    rewrite: t('ai.rewrite'),
     consistency: t('ai.consistency'),
+    gen_chapter: t('ai.genChapter'),
   }
   return map[action] || action
 }

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { Book, Chapter, Character } from '@/types'
+import type { Book, Chapter, Character, OutlineItem } from '@/types'
 import { saveAllBooks, loadAllBooks } from '@/commands/storage'
 import { indexChapter, removeChapterIndex } from '@/commands/search'
 
@@ -16,6 +16,7 @@ function makeBook(title?: string): Book {
     description: '',
     worldSetting: '',
     storySetting: '',
+    outline: [],
     characters: [],
     chapters: [],
     createdAt: now,
@@ -123,6 +124,9 @@ export const useBookStore = defineStore('book', () => {
       chapter.title = title
       chapter.updatedAt = new Date().toISOString()
     }
+    // Sync linked outline item title
+    const outline = book.outline.find((o) => o.chapterId === chapterId)
+    if (outline) outline.title = title
   }
 
   function getActiveChapter(): Chapter | undefined {
@@ -162,6 +166,100 @@ export const useBookStore = defineStore('book', () => {
     if (idx === -1) return
     book.characters.splice(idx, 1)
     book.updatedAt = new Date().toISOString()
+  }
+
+  // ---- Outline CRUD ----
+  function addOutlineItem(item?: Partial<OutlineItem>): OutlineItem | undefined {
+    const book = activeBook.value
+    if (!book) return undefined
+    const maxOrder = book.outline.reduce((max, o) => Math.max(max, o.order), 0)
+    const outlineItem: OutlineItem = {
+      id: generateId(),
+      title: item?.title || '',
+      description: item?.description || '',
+      order: item?.order ?? maxOrder + 1,
+    }
+    book.outline.push(outlineItem)
+    book.updatedAt = new Date().toISOString()
+    return outlineItem
+  }
+
+  function updateOutlineItem(id: string, data: Partial<OutlineItem>) {
+    const book = activeBook.value
+    if (!book) return
+    const item = book.outline.find((o) => o.id === id)
+    if (item) {
+      Object.assign(item, data)
+      book.updatedAt = new Date().toISOString()
+    }
+  }
+
+  function deleteOutlineItem(id: string) {
+    const book = activeBook.value
+    if (!book) return
+    const idx = book.outline.findIndex((o) => o.id === id)
+    if (idx === -1) return
+    book.outline.splice(idx, 1)
+    book.updatedAt = new Date().toISOString()
+  }
+
+  function reorderOutline(ids: string[]) {
+    const book = activeBook.value
+    if (!book) return
+    ids.forEach((id, index) => {
+      const item = book.outline.find((o) => o.id === id)
+      if (item) item.order = index + 1
+    })
+    book.outline.sort((a, b) => a.order - b.order)
+    book.updatedAt = new Date().toISOString()
+  }
+
+  // ---- Outline <-> Chapter linking ----
+  function linkOutlineToChapter(outlineItemId: string, chapterId: string) {
+    const book = activeBook.value
+    if (!book) return
+    // Unlink any previous outline from this chapter
+    const prev = book.outline.find((o) => o.chapterId === chapterId)
+    if (prev) prev.chapterId = undefined
+    // Unlink any previous chapter from this outline item
+    const chapter = book.chapters.find((c) => c.outlineItemId === outlineItemId)
+    if (chapter) chapter.outlineItemId = undefined
+    // Link
+    const item = book.outline.find((o) => o.id === outlineItemId)
+    const ch = book.chapters.find((c) => c.id === chapterId)
+    if (item && ch) {
+      item.chapterId = chapterId
+      item.title = ch.title // Sync title from chapter
+      ch.outlineItemId = outlineItemId
+    }
+    book.updatedAt = new Date().toISOString()
+  }
+
+  function unlinkOutlineFromChapter(outlineItemId: string) {
+    const book = activeBook.value
+    if (!book) return
+    const item = book.outline.find((o) => o.id === outlineItemId)
+    if (item && item.chapterId) {
+      const chapter = book.chapters.find((c) => c.id === item.chapterId)
+      if (chapter) chapter.outlineItemId = undefined
+      item.chapterId = undefined
+      book.updatedAt = new Date().toISOString()
+    }
+  }
+
+  function getOutlineForChapter(chapterId: string): OutlineItem | undefined {
+    const book = activeBook.value
+    if (!book) return undefined
+    return book.outline.find((o) => o.chapterId === chapterId)
+  }
+
+  /** Build outline context string for AI operations on the active chapter */
+  function buildOutlineContext(): string {
+    const chId = activeChapterId.value
+    if (!chId) return ''
+    const outline = getOutlineForChapter(chId)
+    if (!outline) return ''
+    return `【当前章节大纲】${outline.title}${outline.description ? `：${outline.description}` : ''}`
   }
 
   function getBookStats(bookId: string) {
@@ -284,6 +382,14 @@ export const useBookStore = defineStore('book', () => {
     updateCharacter,
     deleteCharacter,
     getBookStats,
+    addOutlineItem,
+    updateOutlineItem,
+    deleteOutlineItem,
+    reorderOutline,
+    linkOutlineToChapter,
+    unlinkOutlineFromChapter,
+    getOutlineForChapter,
+    buildOutlineContext,
     saveToDisk,
     loadFromDisk,
     removeChapterFromIndex,

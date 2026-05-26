@@ -42,6 +42,7 @@ export interface Snapshot {
   timestamp: string
   label: string
   word_count: number
+  title: string
   content: string
 }
 
@@ -52,6 +53,7 @@ export interface Chapter {
   createdAt: string
   updatedAt: string
   snapshots: Snapshot[]
+  outlineItemId?: string
 }
 
 export interface Character {
@@ -62,12 +64,21 @@ export interface Character {
   notes: string
 }
 
+export interface OutlineItem {
+  id: string
+  title: string
+  description: string
+  order: number
+  chapterId?: string
+}
+
 export interface Book {
   id: string
   title: string
   description: string
   worldSetting: string
   storySetting: string
+  outline: OutlineItem[]
   characters: Character[]
   chapters: Chapter[]
   createdAt: string
@@ -79,7 +90,21 @@ export interface Project {
   chapters: Chapter[]
 }
 
-export type AiAction = 'review' | 'idea' | 'continue' | 'consistency' | 'gen_chapter'
+export interface GeneratedCharacter {
+  name: string
+  role: string
+  description: string
+}
+
+export interface GeneratedBookInfo {
+  title: string
+  description: string
+  world_setting: string
+  story_setting: string
+  characters: GeneratedCharacter[]
+}
+
+export type AiAction = 'review' | 'idea' | 'continue' | 'consistency' | 'gen_chapter' | 'rewrite'
 
 export interface AiActionConfig {
   action: AiAction

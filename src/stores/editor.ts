@@ -5,6 +5,7 @@ import type { AiAction } from '@/types'
 export const useEditorStore = defineStore('editor', () => {
   const content = ref('')
   const selectedText = ref('')
+  const cursorPosition = ref(0) // ProseMirror document position (from)
   const activeAction = ref<AiAction>('review')
   const aiResults = ref<Record<string, string>>({})
   const errors = ref<Record<string, string>>({})
@@ -28,6 +29,10 @@ export const useEditorStore = defineStore('editor', () => {
 
   function updateSelection(text: string) {
     selectedText.value = text
+  }
+
+  function updateCursorPosition(pos: number) {
+    cursorPosition.value = pos
   }
 
   function setActiveAction(action: AiAction) {
@@ -106,6 +111,7 @@ export const useEditorStore = defineStore('editor', () => {
     hasContent,
     updateContent,
     updateSelection,
+    updateCursorPosition,
     setActiveAction,
     setAiResult,
     setLoading,

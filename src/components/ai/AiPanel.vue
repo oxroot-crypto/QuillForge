@@ -57,6 +57,7 @@
       <ContinueResult v-else-if="editorStore.activeAction === 'continue'" />
       <ConsistencyResult v-else-if="editorStore.activeAction === 'consistency'" />
       <GenChapterResult v-else-if="editorStore.activeAction === 'gen_chapter'" />
+      <RewriteResult v-else-if="editorStore.activeAction === 'rewrite'" />
     </div>
 
     <div class="panel-analytics-toggle" @click="toggleAnalytics">
@@ -90,6 +91,7 @@ import IdeaResult from './IdeaResult.vue'
 import ContinueResult from './ContinueResult.vue'
 import ConsistencyResult from './ConsistencyResult.vue'
 import GenChapterResult from './GenChapterResult.vue'
+import RewriteResult from './RewriteResult.vue'
 import AnalyticsPanel from '@/components/analytics/AnalyticsPanel.vue'
 import TemplateSelector from './TemplateSelector.vue'
 
@@ -104,6 +106,7 @@ const tabs: { action: AiAction; icon: string }[] = [
   { action: 'review', icon: '\u{1F50D}' },
   { action: 'idea', icon: '\u{1F4A1}' },
   { action: 'continue', icon: '\u{270D}' },
+  { action: 'rewrite', icon: '\u{1F589}' },
   { action: 'consistency', icon: '\u{1F4DC}' },
   { action: 'gen_chapter', icon: '\u{26A1}' },
 ]

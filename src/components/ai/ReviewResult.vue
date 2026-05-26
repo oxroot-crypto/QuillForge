@@ -6,7 +6,7 @@
 
     <button
       class="btn-action"
-      :disabled="!editorStore.hasSelection || editorStore.isLoading"
+      :disabled="editorStore.isLoading || !bookStore.activeChapterId"
       @click="doReview"
     >
       <LoadingDots v-if="editorStore.isLoading" />
@@ -22,9 +22,10 @@
       {{ $t('common.cancel') }}
     </button>
 
-    <div v-if="editorStore.selectedText && !editorStore.isLoading" class="selected-preview">
-      <div class="preview-label">{{ $t('ai.selected', { count: editorStore.selectedText.length }) }}</div>
-      <div class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
+    <div v-if="!editorStore.isLoading" class="selected-preview">
+      <div v-if="editorStore.selectedText" class="preview-label">{{ $t('ai.selected', { count: editorStore.selectedText.length }) }}</div>
+      <div v-else class="preview-label">{{ $t('ai.reviewFullChapter') }}</div>
+      <div v-if="editorStore.selectedText" class="preview-text">{{ editorStore.selectedText.slice(0, 200) }}{{ editorStore.selectedText.length > 200 ? '...' : '' }}</div>
     </div>
 
     <div v-if="editorStore.isLoading" class="review-loading">
@@ -73,11 +74,19 @@ function buildBookContext(): string {
     ...book.characters.filter((c) => c.name && c.description).map(
       (c) => `【角色·${c.role === 'protagonist' ? '主角' : c.role === 'antagonist' ? '反派' : c.role === 'supporting' ? '配角' : '路人'}】${c.name}：${c.description}`,
     ),
+    bookStore.buildOutlineContext(),
   ].filter(Boolean).join('\n')
 }
 
+function getReviewContent(): string {
+  if (editorStore.selectedText) return editorStore.selectedText
+  // Fallback to full chapter content (strip HTML tags)
+  return editorStore.content.replace(/<[^>]*>/g, '')
+}
+
 async function doReview() {
-  if (!editorStore.selectedText) return
+  const content = getReviewContent()
+  if (!content.trim()) return
   editorStore.setLoading(true)
   editorStore.setAiResult('', 'review')
   editorStore.setError('', 'review')
@@ -86,7 +95,7 @@ async function doReview() {
     const bookCtx = buildBookContext()
     const result = await sendAiMessage(settingsStore.effectiveConfig, {
       action: 'review',
-      content: editorStore.selectedText,
+      content,
       context: bookCtx || undefined,
     })
     if (editorStore.isCancelled('review')) return

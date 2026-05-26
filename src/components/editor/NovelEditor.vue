@@ -108,6 +108,7 @@ const editor = useEditor({
     const { from, to } = editor.state.selection
     const text = editor.state.doc.textBetween(from, to, ' ')
     editorStore.updateSelection(text)
+    editorStore.updateCursorPosition(from)
   },
   onCreate: ({ editor }) => {
     setEditorView(editor)

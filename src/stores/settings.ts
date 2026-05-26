@@ -43,9 +43,14 @@ export const useSettingsStore = defineStore('settings', () => {
     const base = modelConfig.value
     const activeTpl = templateStore.activeTemplate
     if (activeTpl && activeTpl.systemPrompt) {
-      return { ...base, system_prompt: activeTpl.systemPrompt }
+      return { ...base, system_prompt: '' } // Template prompt is appended to content instead
     }
     return base
+  })
+
+  const templateSystemPrompt = computed<string>(() => {
+    const tpl = templateStore.activeTemplate
+    return (tpl && tpl.systemPrompt) ? tpl.systemPrompt : ''
   })
 
   const currentProvider = computed(() =>

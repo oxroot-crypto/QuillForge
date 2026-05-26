@@ -16,7 +16,7 @@
 
     <button
       class="btn-action"
-      :disabled="!editorStore.hasContent || editorStore.isLoading"
+      :disabled="!editorStore.hasContent || editorStore.isLoading || !bookStore.activeChapterId"
       @click="doContinue"
     >
       <LoadingDots v-if="editorStore.isLoading" />
@@ -79,12 +79,26 @@ function buildBookContext(): string {
     ...book.characters.filter((c) => c.name && c.description).map(
       (c) => `【角色】${c.name}(${c.role})：${c.description}`,
     ),
+    bookStore.buildOutlineContext(),
   ].filter(Boolean).join('\n')
+}
+
+/** Get text before cursor for context, or last 2000 chars if cursor is at end */
+function getContinueContext(): string {
+  const plainText = editorStore.content.replace(/<[^>]*>/g, '')
+  const cursorPos = editorStore.cursorPosition
+  if (cursorPos > 0) {
+    // Use text up to cursor position (last 2000 chars before cursor)
+    const beforeCursor = plainText.slice(0, cursorPos)
+    return beforeCursor.slice(-2000)
+  }
+  // Fallback: last 2000 chars
+  return plainText.slice(-2000)
 }
 
 async function doContinue() {
   if (!editorStore.hasContent) return
-  const context = editorStore.content.replace(/<[^>]*>/g, '').slice(-2000)
+  const context = getContinueContext()
   editorStore.setLoading(true)
   editorStore.setAiResult('', 'continue')
   editorStore.setError('', 'continue')

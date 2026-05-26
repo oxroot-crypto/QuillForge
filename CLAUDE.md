@@ -9,7 +9,7 @@ QuillForge 是一个面向网文作者的 AI 辅助写作桌面应用，使用 *
 ```
 ├── src/                          # Vue 3 + TypeScript 前端
 │   ├── components/
-│   │   ├── ai/                   # AI 面板组件 (AiPanel, ReviewResult, IdeaResult, ContinueResult, ConsistencyResult, GenChapterResult, TemplateSelector)
+│   │   ├── ai/                   # AI 面板组件 (AiPanel, ReviewResult, IdeaResult, ContinueResult, RewriteResult, ConsistencyResult, GenChapterResult, TemplateSelector)
 │   │   ├── analytics/            # 写作分析面板
 │   │   ├── common/               # 通用组件 (AppLayout, TitleBar, LoadingDots, ModalDialog, SearchDialog)
 │   │   ├── editor/               # 编辑器组件 (NovelEditor, BubbleMenu, BookSidebar, BookSettingsPanel, CharacterPanel, EditorToolbar, ChapterHistory)
@@ -87,23 +87,34 @@ QuillForge 是一个面向网文作者的 AI 辅助写作桌面应用，使用 *
 - **后端**: Rust async/await，通过 `invoke` 桥接
 - **命名**: camelCase (JS/TS)，snake_case (Rust)
 - **类型**: 前端类型定义集中在 `src/types/index.ts`，Rust 端用 `#[derive(Serialize, Deserialize)]` 镜像
+- **AI Action**: 使用字符串字面量联合类型 `'review' | 'idea' | 'continue' | 'rewrite' | 'consistency' | 'gen_chapter'`
+
+### 提示词模板架构
+- **系统提示词 (system prompt)**: 由 Rust 端 `commands/ai.rs` 按 action 类型设置，控制输出格式（原生语言回复、JSON 结构等），用户不可覆盖
+- **模板提示词 (template systemPrompt)**: 用户/内置模板的 `systemPrompt` 字段，作为 `【额外要求】` 拼接到发送内容的头部，用于风格/技巧指引，不影响输出格式
+- Rust 端 `build_messages()` 根据 `action` 路由到不同的消息构造逻辑:
+  - `review`: 全面审阅 + 大纲遵循度评估
+  - `consistency`: 角色一致性 + 大纲偏离检查
+  - `continue`: 续写下文
+  - `rewrite`: 改写，携带书设定/上下文
+  - `idea`: 情节脑暴
+  - `gen_chapter`: 生成章节内容
 
 ### 前端-后端通信
-- 前端命令封装在 `src/commands/` 下按领域拆分（`ai.ts`、`keys.ts`、`storage.ts`）
-- Rust 命令在 `src-tauri/src/commands/` 下按领域拆分（`ai.rs`、`keys.rs`、`books.rs`）
+- 前端命令封装在 `src/commands/` 下按领域拆分（`ai.ts`、`keys.ts`、`storage.ts`、`history.ts`）
+- Rust 命令在 `src-tauri/src/commands/` 下按领域拆分（`ai.rs`、`keys.rs`、`books.rs`、`history.rs`、`search.rs`、`spell.rs`）
 - 所有命令在 `lib.rs` 的 `invoke_handler` 中注册
 - 前后端共享数据结构 (ModelConfig, AiRequest, ProviderInfo 等)
 
 ### 数据流
-### 数据流
 - **AI 请求**: 前端 -> `commands/ai.ts:sendAiMessage()` -> `invoke('send_ai_message')` -> `commands/ai.rs` -> `llm/provider.rs` -> 具体提供商实现
 - **API Key**: 前端 -> `commands/keys.ts:saveApiKey()` -> `invoke('save_api_key')` -> `commands/keys.rs` -> `crypto.rs` -> Tauri 加密存储
 - **书籍持久化**: Pinia store `watch` 深度监听 -> 800ms 防抖自动保存 -> `invoke('save_all_books')` -> 写入用户数据目录
-- **版本快照**: 内存存储，嵌入 `Chapter.snapshots` 数组，通过书籍持久化机制自动保存到 JSON
+- **版本快照**: 内存存储，嵌入 `Chapter.snapshots` 数组，通过书籍持久化机制自动保存到 JSON。快照包含 `title` 字段，恢复时同时恢复标题和内容。支持通过 `deleteSnapshot()` 删除单条快照
 
 ### 状态管理
 - `bookStore`: 核心数据，管理书籍/章节/角色的增删改查，包含 `activeChapterId`；`deep: true` watch + 快照比对实现自动保存
-- `editorStore`: 编辑器实时状态（内容、选区、AI 加载状态、取消支持、action handler 注册），`wordCount` 为计算属性
+- `editorStore`: 编辑器实时状态（内容、选区、`cursorPosition` 光标位置、AI 加载状态、取消支持、action handler 注册），`wordCount` 为计算属性
 - `settingsStore`: LLM 提供商预设配置、API Key 状态，预设存 `localStorage`
 - `themeStore`: 亮/暗主题切换，应用 CSS 变量
 - `i18nStore`: 语言偏好持久化
@@ -137,6 +148,13 @@ npm run tauri build  # 生产构建
 4. 前端命令封装 → 按照领域在 `src/commands/` 下对应文件中封装
 5. Pinia Store / 组件 → 按功能添加到 `src/stores/` 或 `src/components/`
 
+### 添加新的 AI Action
+1. `src/types/index.ts` 的 `AiAction` 联合类型添加新值
+2. `src-tauri/src/commands/ai.rs` 添加 action 路由分支和系统提示词
+3. 创建前端组件（如 `RewriteResult.vue`）并在 `AiPanel.vue` 注册标签页
+4. 更新 `TemplateSelector.vue` 的 action 下拉选项
+5. `src/i18n/locales/` 添加对应的 i18n 键（如 `rewrite`、`rewriteHint`）
+
 ### 添加新的 AI 提供商
 1. `src-tauri/src/llm/provider.rs` 的 `send_to_provider()` 添加路由分支
 2. `src-tauri/src/llm/` 下创建新文件实现 API 调用
@@ -163,11 +181,23 @@ npm run tauri build  # 生产构建
 - **排版**: 衬线字体 (Georgia/Noto Serif SC)、宽松行距 1.9、细滚动条
 - **拼写检查**: 红色波浪线标错 (Hunspell 后端)，600ms 防抖
 - **Ghost Text**: AI 续写提示，Tab 接受 · Esc 取消
+- **光标追踪**: `onSelectionUpdate` 实时记录 `cursorPosition` 到 `editorStore`，供续写等 AI 功能使用
 
-### 错误反馈
+### 大纲管理 (OutlineDialog)
+- 每个章节绑定一个大纲项，大纲项标题直接从关联章节标题读取（不可编辑）
+- 大纲描述可自由编辑，用于记录章节剧情要点、伏笔等
+- AI 审阅和一致性检查时会自动参考章节大纲内容
+
+### AI 面板 (AiPanel)
+- 标签页按顺序: 审阅 (review)、脑暴 (idea)、续写 (continue)、改写 (rewrite)、一致性 (consistency)、生成章节 (gen_chapter)
+- **续写 (Continue)**: 使用 `editorStore.cursorPosition` 取光标前 2000 字符作为上下文；无光标时默认为文档尾部
+- **审阅/一致性 (Review/Consistency)**: 有选中文本时仅操作选中内容，无选中文本时对整个章节操作。提示词中追加评估是否遵循章节大纲的指令
+- **改写 (Rewrite)**: 选中文本或全章改写，生成后自动保存快照并应用，显示成功状态和"重新生成"按钮
+- **生成章节 (GenChapter)**: 仅对已选中章节进行操作（无选中章节时禁用），生成后自动保存快照并替换内容
+- **禁用条件**: 所有 AI 按钮在无活跃章节 (`!bookStore.activeChapterId`) 时禁用
 - AI 操作失败的错误通过 `editorStore.setError()` 设置
 - `AppLayout` 组件监听 `editorStore.error`，显示底部的全局 Toast（8秒自动消失，点击可关闭）
-- AI 面板组件（ReviewResult、IdeaResult、ContinueResult）也各自显示错误
+- AI 面板组件（ReviewResult、IdeaResult、ContinueResult、RewriteResult）也各自显示错误
 
 ### 自动保存
 - 书籍数据通过 `bookStore` 的 `watch(books, ..., { deep: true })` 自动保存
