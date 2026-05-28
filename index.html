@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuillForge — AI-Powered Novel Writing Assistant</title>
+  <meta name="description" content="QuillForge is a desktop application for web novel authors, combining a rich text editor with AI-assisted writing capabilities." />
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+      background: #0d0d14;
+      color: #e2e2f0;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+    a { color: #7c7cf0; text-decoration: none; transition: color .2s; }
+    a:hover { color: #a8a8ff; }
+
+    /* ── Navigation ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 40px;
+      background: rgba(13,13,20,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(124,124,240,0.08);
+    }
+    nav .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.1rem; font-weight: 700; color: #e2e2f0;
+    }
+    nav .logo svg { width: 28px; height: 28px; }
+    nav .nav-links { display: flex; gap: 28px; align-items: center; }
+    nav .nav-links a { font-size: 0.85rem; color: #8888aa; font-weight: 500; }
+    nav .nav-links a:hover { color: #e2e2f0; }
+    .nav-cta {
+      padding: 6px 18px; border-radius: 6px;
+      background: #7c7cf0; color: #fff !important;
+      font-size: 0.82rem; font-weight: 600;
+      transition: background .2s;
+    }
+    .nav-cta:hover { background: #6a6adf !important; }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      background: radial-gradient(ellipse at 50% 0%, rgba(124,124,240,0.08) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 20%, rgba(124,124,240,0.05) 0%, transparent 50%);
+    }
+    .hero-logo {
+      width: 80px; height: 80px; margin-bottom: 24px;
+      filter: drop-shadow(0 0 40px rgba(124,124,240,0.3));
+    }
+    .hero h1 {
+      font-size: 3.2rem; font-weight: 800;
+      background: linear-gradient(135deg, #e2e2f0 0%, #7c7cf0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .hero .subtitle {
+      font-size: 1.2rem; color: #8888aa;
+      max-width: 560px; margin-bottom: 10px;
+    }
+    .hero .tagline {
+      font-size: 0.95rem; color: #666688;
+      max-width: 500px; margin-bottom: 40px;
+    }
+    .hero-buttons { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: 8px;
+      font-size: 0.92rem; font-weight: 600; cursor: pointer;
+      border: none; transition: all .25s;
+    }
+    .btn-primary {
+      background: #7c7cf0; color: #fff;
+      box-shadow: 0 4px 24px rgba(124,124,240,0.3);
+    }
+    .btn-primary:hover { background: #6a6adf; transform: translateY(-2px); box-shadow: 0 6px 32px rgba(124,124,240,0.4); }
+    .btn-secondary {
+      background: rgba(124,124,240,0.08); color: #c8c8e8;
+      border: 1px solid rgba(124,124,240,0.15);
+    }
+    .btn-secondary:hover { background: rgba(124,124,240,0.15); transform: translateY(-2px); }
+    .hero .scroll-indicator {
+      position: absolute; bottom: 30px;
+      font-size: 1.5rem; color: #444466;
+      animation: bounce 2s infinite;
+    }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }
+
+    /* ── Section ── */
+    section { padding: 80px 24px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-title {
+      font-size: 2rem; font-weight: 700; text-align: center;
+      margin-bottom: 8px;
+    }
+    .section-desc {
+      text-align: center; color: #8888aa;
+      max-width: 600px; margin: 0 auto 56px;
+      font-size: 0.95rem;
+    }
+
+    /* ── Badge ── */
+    .badge-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 32px; }
+    .badge {
+      display: inline-block; padding: 4px 14px; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 600;
+      background: rgba(124,124,240,0.1); border: 1px solid rgba(124,124,240,0.15);
+      color: #a8a8cc;
+    }
+    .badge.vue { background: rgba(66,184,131,0.12); border-color: rgba(66,184,131,0.2); color: #42b883; }
+    .badge.ts { background: rgba(49,120,198,0.12); border-color: rgba(49,120,198,0.2); color: #5a9cf0; }
+    .badge.rust { background: rgba(239,76,35,0.1); border-color: rgba(239,76,35,0.15); color: #ef4c23; }
+    .badge.tauri { background: rgba(255,199,0,0.1); border-color: rgba(255,199,0,0.15); color: #ffc700; }
+    .badge.mit { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); color: #aaaacc; }
+
+    /* ── Features Grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(124,124,240,0.08);
+      border-radius: 12px;
+      padding: 28px 24px;
+      transition: all .3s;
+    }
+    .feature-card:hover {
+      background: rgba(124,124,240,0.04);
+      border-color: rgba(124,124,240,0.18);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .feature-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: #e2e2f0; }
+    .feature-card p { font-size: 0.85rem; color: #8888aa; line-height: 1.6; }
+
+    /* ── Architecture ── */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .arch-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(124,124,240,0.08);
+      border-radius: 10px;
+      padding: 20px 18px;
+      text-align: center;
+      transition: all .3s;
+    }
+    .arch-card:hover { background: rgba(124,124,240,0.04); border-color: rgba(124,124,240,0.18); }
+    .arch-card .arch-icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .arch-card h4 { font-size: 0.85rem; font-weight: 700; color: #e2e2f0; margin-bottom: 4px; }
+    .arch-card p { font-size: 0.75rem; color: #666688; }
+
+    /* ── Security ── */
+    .security-box {
+      background: rgba(124,124,240,0.03);
+      border: 1px solid rgba(124,124,240,0.08);
+      border-radius: 12px;
+      padding: 32px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .security-item { font-size: 0.88rem; color: #a8a8cc; padding-left: 20px; position: relative; }
+    .security-item::before { content: '✓'; position: absolute; left: 0; color: #42b883; font-weight: 700; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid rgba(124,124,240,0.06);
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 0.82rem; color: #555577;
+    }
+    footer a { color: #7777aa; }
+    footer a:hover { color: #a8a8ff; }
+    footer .footer-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav { padding: 12px 20px; }
+      nav .nav-links { gap: 16px; }
+      nav .nav-links a { font-size: 0.78rem; }
+      .hero h1 { font-size: 2rem; }
+      .hero .subtitle { font-size: 1rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .section-title { font-size: 1.6rem; }
+      section { padding: 60px 16px; }
+    }
+
+    /* ── Terminals / Code ── */
+    .terminal {
+      background: #14141f;
+      border: 1px solid rgba(124,124,240,0.1);
+      border-radius: 10px;
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      overflow-x: auto;
+      color: #c0c0d8;
+      margin: 0 auto;
+      max-width: 600px;
+    }
+    .terminal .prompt { color: #7c7cf0; }
+    .terminal .comment { color: #555577; }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Navigation ─── -->
+  <nav>
+    <div class="logo">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Quill feather -->
+        <path d="M85 15C78 8 68 6 60 10L25 45C20 50 18 58 22 65L15 85L35 78C42 82 50 80 55 75L90 40C94 32 92 22 85 15Z"
+              fill="url(#q-grad)" stroke="#7c7cf0" stroke-width="2"/>
+        <path d="M40 45L55 35" stroke="#9c9cff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M35 55L50 45" stroke="#9c9cff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M30 65L45 55" stroke="#9c9cff" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="75" cy="70" r="3" fill="#7c7cf0" opacity="0.6"/>
+        <circle cx="68" cy="78" r="2" fill="#7c7cf0" opacity="0.4"/>
+        <circle cx="82" cy="65" r="2" fill="#7c7cf0" opacity="0.4"/>
+        <defs>
+          <linearGradient id="q-grad" x1="15" y1="85" x2="90" y2="15" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#7c7cf0"/>
+            <stop offset="1" stop-color="#c8c8ff"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      QuillForge
+    </div>
+    <div class="nav-links">
+      <a href="#features">功能</a>
+      <a href="#architecture">技术栈</a>
+      <a href="#quickstart">快速开始</a>
+      <a href="https://github.com/oxroot-crypto/QuillForge" target="_blank">GitHub</a>
+      <a href="https://github.com/oxroot-crypto/QuillForge/releases" target="_blank" class="nav-cta">下载</a>
+    </div>
+  </nav>
+
+  <!-- ─── Hero ─── -->
+  <section class="hero">
+    <svg class="hero-logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M85 15C78 8 68 6 60 10L25 45C20 50 18 58 22 65L15 85L35 78C42 82 50 80 55 75L90 40C94 32 92 22 85 15Z"
+            fill="url(#q-grad-h)" stroke="#7c7cf0" stroke-width="2"/>
+      <path d="M40 45L55 35" stroke="#9c9cff" stroke-width="2" stroke-linecap="round"/>
+      <path d="M35 55L50 45" stroke="#9c9cff" stroke-width="2" stroke-linecap="round"/>
+      <path d="M30 65L45 55" stroke="#9c9cff" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="75" cy="70" r="3" fill="#7c7cf0" opacity="0.6"/>
+      <circle cx="68" cy="78" r="2" fill="#7c7cf0" opacity="0.4"/>
+      <circle cx="82" cy="65" r="2" fill="#7c7cf0" opacity="0.4"/>
+      <defs>
+        <linearGradient id="q-grad-h" x1="15" y1="85" x2="90" y2="15" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#7c7cf0"/>
+          <stop offset="1" stop-color="#c8c8ff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <h1>QuillForge</h1>
+    <p class="subtitle">AI 驱动的网文创作助手</p>
+    <p class="tagline">AI-Powered Novel Writing Assistant — 多 LLM 提供商 · 本地优先 · 加密安全</p>
+    <div class="badge-row">
+      <span class="badge vue">Vue 3</span>
+      <span class="badge ts">TypeScript</span>
+      <span class="badge rust">Rust</span>
+      <span class="badge tauri">Tauri 2</span>
+      <span class="badge mit">MIT License</span>
+    </div>
+    <div class="hero-buttons">
+      <a href="https://github.com/oxroot-crypto/QuillForge/releases" target="_blank" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        下载
+      </a>
+      <a href="https://github.com/oxroot-crypto/QuillForge" target="_blank" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </div>
+    <div class="scroll-indicator">⌄</div>
+  </section>
+
+  <!-- ─── Features ─── -->
+  <section id="features">
+    <div class="section-inner">
+      <h2 class="section-title">功能特性</h2>
+      <p class="section-desc">将现代编辑器体验与 AI 辅助写作深度融合，为网文作者量身打造</p>
+      <div class="features-grid">
+
+        <div class="feature-card">
+          <div class="feature-icon">📚</div>
+          <h3>书籍与章节管理</h3>
+          <p>层级化组织：书籍 → 章节，每本书独立配置世界观、剧情总结、角色档案，自动作为 AI 上下文。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">✍️</div>
+          <h3>AI 幽灵文本续写</h3>
+          <p>AI 续写内容以幽灵文本形式出现在编辑器光标处。<kbd>Tab</kbd> 接受，<kbd>Esc</kbd> 取消——类似 IDE 代码补全。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>AI 审阅 &amp; 一致性检查</h3>
+          <p>选中文本一键审阅，从文法、节奏、角色一致性、情节逻辑等维度给出具体建议，附带大纲遵循度评估。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">💡</div>
+          <h3>灵感构思</h3>
+          <p>描述当前情节节点或卡点，AI 结合已有世界观和角色给出 3–5 个创意发展方向。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>AI 生成章节</h3>
+          <p>从零生成完整章节，支持篇幅选择、重新生成并覆盖应用到同一章节，自动保存快照。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <h3>AI 改写</h3>
+          <p>选中文本或全章改写，支持自定义改写要求。自动保存快照，支持不同风格重新生成。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>大纲管理</h3>
+          <p>每章独占大纲，标题从章节自动同步，描述自由编辑。支持拖拽排序、AI 一键生成大纲内容。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📸</div>
+          <h3>版本快照</h3>
+          <p>手动与自动快照，每条快照保存标题+内容。支持预览、恢复、单条删除，版本对比回溯无忧。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3>写作目标</h3>
+          <p>设定每日字数目标，实时进度条显示完成度，追踪连续写作天数（🔥 streak）和写作时长。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🏷️</div>
+          <h3>章节状态</h3>
+          <p>彩色状态标识（草稿·修改中·已完成·冻结），点击切换，按状态筛选，一目了然。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔌</div>
+          <h3>多 AI 提供商</h3>
+          <p>OpenAI · Anthropic · Ollama · 兼容接口（DeepSeek、Qwen 等）。保存为预设，工具栏快速切换。</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>写作分析</h3>
+          <p>句长分布、对话比例、可读性评分、词频统计，每本书独立数据分析。</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Security ─── -->
+  <section style="padding-top:0">
+    <div class="section-inner">
+      <h2 class="section-title">🛡️ 安全</h2>
+      <p class="section-desc">你的数据完全由你掌控</p>
+      <div class="security-box">
+        <div class="security-item">API Key 使用 AES-256-GCM 加密，存储在 Tauri 安全存储中</div>
+        <div class="security-item">密钥不出 Rust 后端——前端仅知悉是否已配置</div>
+        <div class="security-item">所有 LLM HTTP 请求均由 Rust 层代理，Key 不暴露给前端网络层</div>
+        <div class="security-item">所有数据本地存储，无需注册账号，无需云服务</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Architecture ─── -->
+  <section id="architecture">
+    <div class="section-inner">
+      <h2 class="section-title">🏗️ 技术栈</h2>
+      <p class="section-desc">现代化桌面应用架构，前后端分离</p>
+      <div class="arch-grid">
+        <div class="arch-card">
+          <div class="arch-icon">🖥️</div>
+          <h4>Tauri 2.x</h4>
+          <p>桌面壳 · 安全沙箱 · 原生性能</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">⚡</div>
+          <h4>Vue 3 + TS</h4>
+          <p>Composition API · Pinia · Vite</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">📝</div>
+          <h4>TipTap</h4>
+          <p>ProseMirror 引擎 · 插件化扩展</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">🦀</div>
+          <h4>Rust</h4>
+          <p>Tokio · reqwest · AES-256-GCM</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">🌐</div>
+          <h4>vue-i18n</h4>
+          <p>简中 / English 实时切换</p>
+        </div>
+        <div class="arch-card">
+          <div class="arch-icon">🎨</div>
+          <h4>CSS 变量主题</h4>
+          <p>亮色 / 暗色 · 跟随系统</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Quick Start ─── -->
+  <section id="quickstart">
+    <div class="section-inner">
+      <h2 class="section-title">🚀 快速开始</h2>
+      <p class="section-desc">从源码构建 QuillForge</p>
+      <div class="terminal">
+        <span class="comment"># 安装依赖</span><br/>
+        <span class="prompt">$</span> npm install<br/>
+        <br/>
+        <span class="comment"># 启动开发模式</span><br/>
+        <span class="prompt">$</span> npm run tauri dev<br/>
+        <br/>
+        <span class="comment"># 生产构建</span><br/>
+        <span class="prompt">$</span> npm run tauri build<br/>
+      </div>
+      <div style="text-align:center;margin-top:24px;font-size:0.85rem;color:#666688;">
+        前置条件：Node.js ≥ 18 · Rust ≥ 1.70 · 各平台 <a href="https://v2.tauri.app/start/prerequisites/" target="_blank">Tauri 依赖</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Footer ─── -->
+  <footer>
+    <div class="footer-links">
+      <a href="https://github.com/oxroot-crypto/QuillForge" target="_blank">GitHub</a>
+      <a href="https://github.com/oxroot-crypto/QuillForge/releases" target="_blank">Releases</a>
+      <a href="https://github.com/oxroot-crypto/QuillForge/issues" target="_blank">Issues</a>
+      <a href="./ROADMAP.md">路线图</a>
+      <a href="README_zh-CN.md">简体中文</a>
+      <a href="README.md">English</a>
+    </div>
+    <p>MIT © 2026 <a href="https://github.com/oxroot-crypto">oxroot</a> &amp; Claude</p>
+    <p style="margin-top:6px;font-size:0.75rem;">Built with ❤️ for web novel authors everywhere</p>
+  </footer>
+
+</body>
+</html>
