@@ -38,6 +38,14 @@ export interface AiRequest {
   context?: string
 }
 
+export type ChapterStatus = 'draft' | 'revising' | 'completed' | 'frozen'
+
+export interface DailyStats {
+  date: string
+  wordsWritten: number
+  writingSeconds: number
+}
+
 export interface Snapshot {
   timestamp: string
   label: string
@@ -50,6 +58,7 @@ export interface Chapter {
   id: string
   title: string
   content: string
+  status: ChapterStatus
   createdAt: string
   updatedAt: string
   snapshots: Snapshot[]

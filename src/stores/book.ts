@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import type { Book, Chapter, Character, OutlineItem } from '@/types'
+import type { Book, Chapter, ChapterStatus, Character, OutlineItem, DailyStats } from '@/types'
 import { saveAllBooks, loadAllBooks } from '@/commands/storage'
 import { indexChapter, removeChapterIndex } from '@/commands/search'
 
@@ -84,6 +84,7 @@ export const useBookStore = defineStore('book', () => {
       id: generateId(),
       title: title || `新章节 ${book.chapters.length + 1}`,
       content: '',
+      status: 'draft',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       snapshots: [],
@@ -108,9 +109,17 @@ export const useBookStore = defineStore('book', () => {
     if (!book) return
     const chapter = book.chapters.find((c) => c.id === chapterId)
     if (chapter) {
+      const oldPlainLen = chapter.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
+      const newPlainLen = content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
+      const delta = newPlainLen - oldPlainLen
+
       chapter.content = content
       chapter.updatedAt = new Date().toISOString()
       book.updatedAt = new Date().toISOString()
+
+      // Track net positive word count
+      if (delta > 0) trackWriting(delta)
+
       // Auto-index (fire-and-forget)
       scheduleIndex(bookId, book.title, chapterId, chapter.title, content)
     }
@@ -262,6 +271,129 @@ export const useBookStore = defineStore('book', () => {
     return `【当前章节大纲】${outline.title}${outline.description ? `：${outline.description}` : ''}`
   }
 
+  // ---- Chapter Status ----
+  function updateChapterStatus(bookId: string, chapterId: string, status: ChapterStatus) {
+    const book = books.value.find((b) => b.id === bookId)
+    if (!book) return
+    const chapter = book.chapters.find((c) => c.id === chapterId)
+    if (chapter) {
+      chapter.status = status
+      chapter.updatedAt = new Date().toISOString()
+      book.updatedAt = new Date().toISOString()
+    }
+  }
+
+  // ---- Writing Goal & Daily Stats ----
+  const dailyGoal = ref(2000)
+  const dailyStats = ref<DailyStats[]>([])
+  // Internal tracking
+  let lastWriteTs = 0
+  let writingTimerId: ReturnType<typeof setInterval> | null = null
+
+  function loadDailyStats() {
+    try {
+      const raw = localStorage.getItem('quillforge_daily_stats')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        dailyStats.value = parsed.stats || []
+        if (typeof parsed.goal === 'number') dailyGoal.value = parsed.goal
+      }
+    } catch { /* ignore */ }
+  }
+
+  function persistDailyStats() {
+    try {
+      localStorage.setItem('quillforge_daily_stats', JSON.stringify({
+        stats: dailyStats.value,
+        goal: dailyGoal.value,
+      }))
+    } catch { /* ignore */ }
+  }
+
+  function getTodayKey(): string {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  function trackWriting(deltaWords: number) {
+    if (deltaWords <= 0) return
+    const key = getTodayKey()
+    let today = dailyStats.value.find((s) => s.date === key)
+    if (!today) {
+      today = { date: key, wordsWritten: 0, writingSeconds: 0 }
+      dailyStats.value.push(today)
+      if (dailyStats.value.length > 365) {
+        dailyStats.value = dailyStats.value.slice(-365)
+      }
+    }
+    today.wordsWritten += deltaWords
+    lastWriteTs = Date.now()
+    if (!writingTimerId) startWritingTimer()
+    persistDailyStats()
+  }
+
+  function startWritingTimer() {
+    writingTimerId = setInterval(() => {
+      if (Date.now() - lastWriteTs > 120_000) {
+        stopWritingTimer()
+        return
+      }
+      const key = getTodayKey()
+      const today = dailyStats.value.find((s) => s.date === key)
+      if (today) {
+        today.writingSeconds += 10
+        persistDailyStats()
+      }
+    }, 10_000)
+  }
+
+  function stopWritingTimer() {
+    if (writingTimerId) {
+      clearInterval(writingTimerId)
+      writingTimerId = null
+    }
+  }
+
+  function setDailyGoal(goal: number) {
+    dailyGoal.value = Math.max(100, Math.min(100_000, goal))
+    persistDailyStats()
+  }
+
+  function getTodayStats(): { wordsWritten: number; writingMinutes: number } {
+    const key = getTodayKey()
+    const today = dailyStats.value.find((s) => s.date === key)
+    return {
+      wordsWritten: today?.wordsWritten || 0,
+      writingMinutes: Math.floor((today?.writingSeconds || 0) / 60),
+    }
+  }
+
+  function getWritingStreak(): number {
+    let streak = 0
+    const today = new Date()
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today)
+      d.setDate(d.getDate() - i)
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      const key = `${y}-${m}-${day}`
+      const stat = dailyStats.value.find((s) => s.date === key)
+      if (stat && stat.wordsWritten > 0) {
+        streak++
+      } else if (i === 0) {
+        // Today has no data yet — check if yesterday had writing
+        continue
+      } else {
+        break
+      }
+    }
+    return streak
+  }
+
   function getBookStats(bookId: string) {
     const book = books.value.find((b) => b.id === bookId)
     if (!book) return { chapters: 0, words: 0, characters: 0 }
@@ -301,6 +433,12 @@ export const useBookStore = defineStore('book', () => {
       const json = await loadAllBooks()
       if (json && json.length > 2) {
         const parsed = JSON.parse(json) as Book[]
+        // Migration: ensure all chapters have status field
+        for (const book of parsed) {
+          for (const chapter of book.chapters) {
+            if (!chapter.status) (chapter as Chapter).status = 'draft'
+          }
+        }
         books.value = parsed
         lastSavedSnapshot = json
         if (parsed.length > 0) {
@@ -316,6 +454,7 @@ export const useBookStore = defineStore('book', () => {
 
   // Watch for changes and auto-save
   if (typeof window !== 'undefined') {
+    loadDailyStats()
     watch(
       books,
       () => scheduleAutoSave(),
@@ -393,5 +532,13 @@ export const useBookStore = defineStore('book', () => {
     saveToDisk,
     loadFromDisk,
     removeChapterFromIndex,
+    // Chapter status
+    updateChapterStatus,
+    // Writing goal & daily stats
+    dailyGoal,
+    dailyStats,
+    setDailyGoal,
+    getTodayStats,
+    getWritingStreak,
   }
 })

@@ -18,11 +18,15 @@
   <a href="https://v2.tauri.app"><img src="https://img.shields.io/badge/tauri-2.x-orange.svg" alt="Tauri 2" /></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.70%2B-red.svg" alt="Rust" /></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/typescript-5.x-3178c6.svg" alt="TypeScript" /></a>
+  <a href="./ROADMAP.md"><img src="https://img.shields.io/badge/version-1.2.0-blueviolet.svg" alt="v1.2.0" /></a>
 </p>
 
 ---
 
 QuillForge is a desktop application for web novel authors, combining a rich text editor with AI-assisted writing capabilities. It supports multiple LLM providers (OpenAI, Anthropic, Ollama, and OpenAI-compatible APIs), stores all data locally with encrypted credentials, and features an inline ghost-text completion system inspired by modern code editors.
+
+**Latest: v1.2 — AI Rewrite · Outline Dialog · Templates · Snapshots · Writing Goals · Chapter Status**
+— AI rewrite with auto-apply, restructured prompt template architecture, snapshot title/delete support, outline management with chapter linking, redesigned create-book wizard, track daily word count progress with streak streaks, color-coded chapter status (draft/revising/completed/frozen) with filtering, and automatic writing time tracking.
 
 ## ✨ Features
 
@@ -53,8 +57,28 @@ QuillForge is a desktop application for web novel authors, combining a rich text
       <p>Generate full chapters from scratch with length control. Supports regeneration and re-apply without creating duplicate chapters.</p>
     </td>
     <td>
-      <h4>🔌 Multi-Provider Support</h4>
-      <p>OpenAI · Anthropic · Ollama · OpenAI-compatible (DeepSeek, Qwen, Doubao, etc.). Save as named presets and switch from the toolbar.</p>
+      <h4>🔁 AI Rewrite</h4>
+      <p>Rewrite selected text or full chapter with custom instructions. Auto-saves a snapshot before applying, supports regeneration with different styles.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>📋 Outline Management</h4>
+      <p>Per-chapter outline with drag-to-reorder, chapter linking, and AI-assisted outline generation. Outline context is fed to AI review & consistency checks.</p>
+    </td>
+    <td>
+      <h4>📚 AI Book Generation</h4>
+      <p>Describe your novel idea and AI generates title, description, world setting, and character profiles. Preview and edit before creating.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>📦 Prompt Templates</h4>
+      <p>Built-in & custom prompt templates for each AI action. Templates append as style modifiers without overriding output format control. Import/export support.</p>
+    </td>
+    <td>
+      <h4>📸 Version Snapshots</h4>
+      <p>Manual & auto snapshots per chapter. Snapshots store title + content. Preview, restore, or delete individual snapshots.</p>
     </td>
   </tr>
   <tr>
@@ -75,6 +99,16 @@ QuillForge is a desktop application for web novel authors, combining a rich text
     <td>
       <h4>📝 Modern Editor</h4>
       <p>TipTap with bubble menu formatting, focus mode, reading time estimate, spell check, and version snapshots.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>🎯 Writing Goals</h4>
+      <p>Set daily word count targets, track progress with a live progress bar, monitor writing streaks (🔥 consecutive days), and automatic session time tracking.</p>
+    </td>
+    <td>
+      <h4>🏷️ Chapter Status</h4>
+      <p>Color-coded status tags (<code>Draft</code> · <code>Revising</code> · <code>Completed</code> · <code>Frozen</code>) on each chapter. Filter by status, click to cycle, right-click to reverse.</p>
     </td>
   </tr>
 </table>
@@ -120,9 +154,9 @@ npm run tauri build
 ```
 ├── src/                          # Vue 3 frontend
 │   ├── components/
-│   │   ├── ai/                   # AiPanel, ReviewResult, IdeaResult, ContinueResult, ConsistencyResult, GenChapterResult, TemplateSelector
+│   │   ├── ai/                   # AiPanel, ReviewResult, IdeaResult, ContinueResult, RewriteResult, ConsistencyResult, GenChapterResult, TemplateSelector
 │   │   ├── analytics/            # AnalyticsPanel (writing statistics dashboard)
-│   │   ├── common/               # AppLayout, TitleBar, LoadingDots, ModalDialog, SearchDialog
+│   │   ├── common/               # AppLayout, TitleBar, LoadingDots, ModalDialog, SearchDialog, CreateBookDialog, OutlineDialog
 │   │   ├── editor/               # NovelEditor, BubbleMenu, BookSidebar, ChapterHistory, EditorToolbar, BookSettingsPanel, CharacterPanel
 │   │   └── settings/             # SettingsDialog, ProviderCard, ApiKeyInput
 │   ├── stores/                   # Pinia (book, editor, settings, template, theme, i18n)

@@ -14,6 +14,7 @@
   <a href="https://v2.tauri.app"><img src="https://img.shields.io/badge/tauri-2.x-orange.svg" alt="Tauri 2" /></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.70%2B-red.svg" alt="Rust" /></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/typescript-5.x-3178c6.svg" alt="TypeScript" /></a>
+  <a href="./ROADMAP.md"><img src="https://img.shields.io/badge/version-1.2.0-blueviolet.svg" alt="v1.2.0" /></a>
 </p>
 
 <p align="center">
@@ -23,6 +24,9 @@
 ---
 
 QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编辑器与 AI 辅助写作能力深度融合。支持多家 LLM 提供商（OpenAI、Anthropic、Ollama 以及 OpenAI 兼容接口），所有数据本地存储，凭据加密保护，并借鉴现代代码编辑器的内联幽灵文本补全交互。
+
+**最新 v1.2 — AI 改写 · 大纲管理 · 模板架构 · 快照增强 · 写作目标 · 章节状态**
+— AI 改写自动应用、提示词模板架构重构、快照标题/删除支持、大纲章节关联管理、建书向导（手动+AI 生成）、每日字数目标与进度追踪、彩色章节状态标签与筛选。
 
 ## ✨ 功能
 
@@ -53,8 +57,28 @@ QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编
       <p>AI 辅助面板中生成完整章节，支持提示词、篇幅选择。可重新生成并覆盖应用到同一章节。</p>
     </td>
     <td>
-      <h4>📊 写作分析</h4>
-      <p>句长分布、对话占比、易读性评分、高频词统计，以及全书统计概览。</p>
+      <h4>🔁 AI 改写</h4>
+      <p>选中文本或全章改写，支持自定义改写要求。自动保存快照后再应用，支持不同风格的重新生成。</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>📋 大纲管理</h4>
+      <p>每章独占大纲，标题从章节自动同步（只读），描述自由编辑。支持拖拽排序、AI 一键生成大纲内容。AI 审阅时自动参考。</p>
+    </td>
+    <td>
+      <h4>📚 AI 生成书籍</h4>
+      <p>描述小说创意，AI 自动生成书名、简介、世界观和角色列表。预览编辑后一键创建。</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>📦 提示词模板</h4>
+      <p>内置与自定义模板按功能关联，以「额外要求」形式拼接。不影响系统提示词的输出格式控制。支持导入/导出 JSON。</p>
+    </td>
+    <td>
+      <h4>📸 版本快照</h4>
+      <p>手动与自动快照，每条快照保存标题+内容。支持预览、恢复、单条删除。</p>
     </td>
   </tr>
   <tr>
@@ -75,6 +99,16 @@ QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编
     <td>
       <h4>📦 提示词模板</h4>
       <p>自定义 AI 提示词模板，按功能关联，支持导入/导出。</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h4>🎯 写作目标</h4>
+      <p>设定每日字数目标，侧边栏实时进度条显示完成度，追踪连续写作天数（🔥 streak）和写作时长。</p>
+    </td>
+    <td>
+      <h4>🏷️ 章节状态</h4>
+      <p>每章彩色状态标识（草稿 · 修改中 · 已完成 · 冻结），支持按状态筛选。点击圆点循环切换，右键反向切换。</p>
     </td>
   </tr>
 </table>

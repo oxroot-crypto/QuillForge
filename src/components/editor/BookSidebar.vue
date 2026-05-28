@@ -81,7 +81,23 @@
     <div class="sidebar-section chapter-section">
       <div class="section-header">
         <h3>{{ $t('book.chapter') }}</h3>
-        <div class="chapter-actions">
+        <div class="chapter-header-actions">
+          <select
+            v-if="bookStore.activeBook"
+            class="status-filter"
+            :value="statusFilter"
+            @change="onStatusFilterChange"
+            :title="$t('book.statusFilter')"
+          >
+            <option value="all">{{ $t('book.filterAll') }}</option>
+            <option
+              v-for="s in chapterStatuses"
+              :key="s.value"
+              :value="s.value"
+            >
+              {{ s.label }}
+            </option>
+          </select>
           <button
             class="btn-icon"
             :title="$t('editor.newChapter')"
@@ -98,17 +114,24 @@
       <div v-if="!bookStore.activeBook" class="sidebar-empty">
         <p>{{ $t('book.noBook') }}</p>
       </div>
-      <div v-else-if="bookStore.activeBookChapters.length === 0" class="sidebar-empty">
+      <div v-else-if="filteredChapters.length === 0" class="sidebar-empty">
         <p>{{ $t('book.noChapters') }}</p>
         <p>{{ $t('book.noChaptersHint') }}</p>
       </div>
       <div
-        v-for="chapter in bookStore.activeBookChapters"
+        v-for="chapter in filteredChapters"
         :key="chapter.id"
         class="chapter-item"
         :class="{ active: chapter.id === bookStore.activeChapterId }"
         @click="selectChapter(chapter.id)"
+        @contextmenu.prevent="onChapterContextMenu($event, chapter)"
       >
+        <span
+          class="status-dot"
+          :class="'status-' + chapter.status"
+          :title="statusLabel(chapter.status)"
+          @click.stop="cycleStatus(chapter)"
+        ></span>
         <span class="chapter-title">{{ chapter.title || $t('editor.unnamed') }}</span>
         <span class="chapter-words">
           {{ chapter.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length }}
@@ -120,6 +143,37 @@
         >
           &times;
         </button>
+      </div>
+    </div>
+
+    <!-- Writing Goal Panel -->
+    <div v-if="bookStore.activeBook" class="goal-panel">
+      <div class="goal-header" @click="goalExpanded = !goalExpanded">
+        <span class="goal-title">&#128202; {{ $t('goal.title') }}</span>
+        <span class="goal-toggle">{{ goalExpanded ? '▾' : '▸' }}</span>
+      </div>
+      <div v-if="goalExpanded" class="goal-body">
+        <div class="goal-progress-bar-wrap">
+          <div
+            class="goal-progress-bar"
+            :style="{ width: goalProgressPct + '%' }"
+            :class="{ 'goal-exceeded': goalProgressPct >= 100 }"
+          ></div>
+        </div>
+        <div class="goal-stats-row">
+          <span class="goal-progress-text">
+            {{ $t('goal.progress', { current: todayStats.wordsWritten, goal: bookStore.dailyGoal }) }}
+          </span>
+          <span class="goal-streak" v-if="streak > 0">
+            {{ $t('goal.streak') }} {{ streak }}{{ $t('goal.days') }} &#x1F525;
+          </span>
+        </div>
+        <div class="goal-meta-row">
+          <span class="goal-time">{{ $t('goal.today') }} {{ todayStats.writingMinutes }}{{ $t('goal.minute') }}</span>
+          <button class="goal-settings-btn" :title="$t('goal.setGoal')" @click="onSetGoal">
+            &#9998;
+          </button>
+        </div>
       </div>
     </div>
 
@@ -171,7 +225,7 @@ import { useI18n } from 'vue-i18n'
 import { useBookStore } from '@/stores/book'
 import { useEditorStore } from '@/stores/editor'
 import { exportBookMarkdown } from '@/commands/storage'
-import type { Book } from '@/types'
+import type { Book, Chapter, ChapterStatus } from '@/types'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import CreateBookDialog from '@/components/common/CreateBookDialog.vue'
 import OutlineDialog from '@/components/common/OutlineDialog.vue'
@@ -189,6 +243,72 @@ const showOutline = ref(false)
 const editingBook = ref<Book | null>(null)
 const editTitle = ref('')
 const renameInput = ref<HTMLInputElement | null>(null)
+
+// ---- Chapter Status ----
+const statusFilter = ref<ChapterStatus | 'all'>('all')
+const goalExpanded = ref(true)
+
+const chapterStatuses = computed(() => [
+  { value: 'draft' as ChapterStatus, label: t('book.status.draft') },
+  { value: 'revising' as ChapterStatus, label: t('book.status.revising') },
+  { value: 'completed' as ChapterStatus, label: t('book.status.completed') },
+  { value: 'frozen' as ChapterStatus, label: t('book.status.frozen') },
+])
+
+const filteredChapters = computed(() => {
+  const chapters = bookStore.activeBookChapters
+  if (statusFilter.value === 'all') return chapters
+  return chapters.filter((c) => c.status === statusFilter.value)
+})
+
+const statusColors: Record<ChapterStatus, string> = {
+  draft: '#6b7280',
+  revising: '#f59e0b',
+  completed: '#10b981',
+  frozen: '#3b82f6',
+}
+
+function statusLabel(status: ChapterStatus): string {
+  return t('book.status.' + status)
+}
+
+function onStatusFilterChange(e: Event) {
+  statusFilter.value = (e.target as HTMLSelectElement).value as ChapterStatus | 'all'
+}
+
+function cycleStatus(chapter: Chapter) {
+  // Cycle: draft → revising → completed → frozen → draft
+  const order: ChapterStatus[] = ['draft', 'revising', 'completed', 'frozen']
+  const idx = order.indexOf(chapter.status)
+  const next = order[(idx + 1) % order.length]
+  bookStore.updateChapterStatus(bookStore.activeBookId, chapter.id, next)
+}
+
+function onChapterContextMenu(e: MouseEvent, chapter: Chapter) {
+  // Simple right-click: cycle status in reverse
+  const order: ChapterStatus[] = ['draft', 'revising', 'completed', 'frozen']
+  const idx = order.indexOf(chapter.status)
+  const prev = order[(idx + 3) % order.length]
+  bookStore.updateChapterStatus(bookStore.activeBookId, chapter.id, prev)
+}
+
+// ---- Writing Goal ----
+const todayStats = computed(() => bookStore.getTodayStats())
+const streak = computed(() => bookStore.getWritingStreak())
+const goalProgressPct = computed(() => {
+  if (bookStore.dailyGoal <= 0) return 0
+  return Math.min(100, Math.round((todayStats.value.wordsWritten / bookStore.dailyGoal) * 100))
+})
+
+async function onSetGoal() {
+  const result = await showModal('prompt', t('goal.setGoal'), { value: String(bookStore.dailyGoal) })
+  if (result) {
+    const num = parseInt(result as string, 10)
+    if (!isNaN(num) && num > 0) {
+      bookStore.setDailyGoal(num)
+    }
+  }
+}
 
 // — Modal state —
 type ModalType = 'prompt' | 'confirm' | 'alert'
@@ -538,11 +658,30 @@ async function onExport() {
 }
 
 /* ── Chapter list ── */
-.chapter-actions {
+.chapter-header-actions {
   display: flex;
   gap: 4px;
   align-items: center;
 }
+
+.status-filter {
+  padding: 3px 20px 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.62rem;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  font-weight: 500;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%238888a8' d='M2 3l2 2 2-2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  max-width: 70px;
+}
+.status-filter:focus { border-color: var(--color-accent); }
+.status-filter option { background: var(--color-surface); color: var(--color-text); }
 
 .chapter-list {
   flex: 1;
@@ -553,8 +692,8 @@ async function onExport() {
 .chapter-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  gap: 5px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -563,6 +702,32 @@ async function onExport() {
 }
 .chapter-item:hover { background: var(--color-hover); border-color: var(--color-border); }
 .chapter-item.active { background: var(--color-accent-light); border-color: var(--color-accent); }
+
+/* Status dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+  border: 1px solid transparent;
+}
+.status-dot:hover {
+  transform: scale(1.5);
+}
+.status-dot.status-draft {
+  background: #6b7280;
+}
+.status-dot.status-revising {
+  background: #f59e0b;
+}
+.status-dot.status-completed {
+  background: #10b981;
+}
+.status-dot.status-frozen {
+  background: #3b82f6;
+}
 
 .chapter-title {
   flex: 1;
@@ -600,6 +765,111 @@ async function onExport() {
   color: var(--color-text-muted);
   font-size: 0.78rem;
   line-height: 1.6;
+}
+
+/* ── Goal Panel ── */
+.goal-panel {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.goal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text);
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+.goal-header:hover { background: var(--color-hover); }
+
+.goal-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.goal-toggle {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
+.goal-body {
+  padding: 6px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.goal-progress-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: var(--color-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goal-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), #6366f1);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+.goal-progress-bar.goal-exceeded {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.goal-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.goal-progress-text {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.goal-streak {
+  font-size: 0.62rem;
+  color: #f59e0b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.goal-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.goal-time {
+  font-size: 0.62rem;
+  color: var(--color-text-muted);
+}
+
+.goal-settings-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+.goal-settings-btn:hover {
+  background: var(--color-hover);
+  color: var(--color-accent);
 }
 
 /* ── Footer ── */
