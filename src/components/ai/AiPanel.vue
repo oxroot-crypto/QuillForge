@@ -122,6 +122,11 @@ function onTemplateChange(e: Event) {
 
 function onTabClick(action: AiAction) {
   editorStore.setActiveAction(action)
+  // Clear template if it doesn't belong to the new action
+  const tpl = templateStore.activeTemplate
+  if (tpl && tpl.action !== action) {
+    templateStore.selectTemplate('')
+  }
   // Restore editor cursor after tab switch
   focusEditor()
 }
