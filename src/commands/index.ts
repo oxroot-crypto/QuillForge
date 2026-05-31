@@ -8,8 +8,8 @@ export {
   deleteBookDir,
   exportBookMarkdown,
 } from './storage'
-export { saveSnapshot, listSnapshots, getSnapshotContent, restoreSnapshot } from './history'
-export type { SnapshotInfo } from './history'
+export { saveSnapshot, listSnapshots, getSnapshotData, deleteSnapshot } from './history'
+export type { SnapshotInfo, SnapshotData } from './history'
 export { spellCheckText } from './spell'
 export type { SpellError } from './spell'
 export { indexChapter, removeChapterIndex, searchChapters } from './search'

@@ -107,6 +107,7 @@ export const useEditorStore = defineStore('editor', () => {
     activeError,
     isLoading,
     wordCount,
+    cursorPosition,
     hasSelection,
     hasContent,
     updateContent,
