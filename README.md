@@ -142,11 +142,14 @@ QuillForge is a desktop application for web novel authors, combining a rich text
 # Install dependencies
 npm install
 
+# Build icons from svg source
+npx tauri icon src-tauri/icons/icon.svg --output src-tauri/icons/
+
 # Start development
-npm run tauri dev
+npx tauri dev
 
 # Production build
-npm run tauri build
+npx tauri build
 ```
 
 ## 📁 Project Structure

@@ -30,6 +30,11 @@ src-tauri/icons/AppIcon-*.png
 src-tauri/icons/Square*.png
 src-tauri/icons/StoreLogo.png
 src-tauri/icons/mipmap-*/
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
+# Generated Tauri schemas
+src-tauri/gen/
 
 # Logs
 *.log

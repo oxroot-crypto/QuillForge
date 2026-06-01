@@ -142,11 +142,14 @@ QuillForge 是一款面向网文作者的桌面端写作工具，将富文本编
 # 安装依赖
 npm install
 
+# 从SVG构建应用图标
+npx tauri icon src-tauri/icons/icon.svg --output src-tauri/icons/
+
 # 启动开发
-npm run tauri dev
+npx tauri dev
 
 # 生产构建
-npm run tauri build
+npx tauri build
 ```
 
 ## 📁 项目结构
