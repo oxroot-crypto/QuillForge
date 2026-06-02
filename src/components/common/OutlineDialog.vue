@@ -153,6 +153,7 @@ import { useBookStore } from '@/stores/book'
 import { useSettingsStore } from '@/stores/settings'
 import { sendAiMessage } from '@/commands/ai'
 import type { OutlineItem } from '@/types'
+import { countWords } from '@/utils/content'
 
 defineEmits<{ close: [] }>()
 
@@ -233,7 +234,7 @@ function buildBookContext(): string {
   }
   if (book.chapters.length > 0) {
     const titles = book.chapters.map((c, i) =>
-      `${i + 1}. ${c.title}（${c.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length}字）`
+      `${i + 1}. ${c.title}（${countWords(c.content)}字）`
     ).join('\n')
     parts.push(`【已有章节】\n${titles}`)
   }

@@ -101,7 +101,7 @@
           <button
             class="btn-icon"
             :title="$t('editor.newChapter')"
-            :disabled="!bookStore.activeBook"
+            :disabled="!bookStore.activeBook || creatingChapter"
             @click="onCreateChapter"
           >
             +
@@ -134,7 +134,7 @@
         ></span>
         <span class="chapter-title">{{ chapter.title || $t('editor.unnamed') }}</span>
         <span class="chapter-words">
-          {{ chapter.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length }}
+          {{ countWords(chapter.content) }}
         </span>
         <button
           class="btn-delete"
@@ -225,6 +225,7 @@ import { useI18n } from 'vue-i18n'
 import { useBookStore } from '@/stores/book'
 import { useEditorStore } from '@/stores/editor'
 import { exportBookMarkdown } from '@/commands/storage'
+import { countWords } from '@/utils/content'
 import type { Book, Chapter, ChapterStatus } from '@/types'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import CreateBookDialog from '@/components/common/CreateBookDialog.vue'
@@ -247,6 +248,7 @@ const renameInput = ref<HTMLInputElement | null>(null)
 // ---- Chapter Status ----
 const statusFilter = ref<ChapterStatus | 'all'>('all')
 const goalExpanded = ref(true)
+const creatingChapter = ref(false)
 
 const chapterStatuses = computed(() => [
   { value: 'draft' as ChapterStatus, label: t('book.status.draft') },
@@ -453,10 +455,17 @@ async function onDeleteBook(book: Book) {
 }
 
 function onCreateChapter() {
-  const chapter = bookStore.createChapter(t('editor.defaultChapterName'))
-  if (chapter) {
-    bookStore.selectChapter(bookStore.activeBookId, chapter.id)
-    editorStore.updateContent('')
+  // Guard against double-click / rapid re-render causing duplicate chapter creation
+  if (creatingChapter.value) return
+  creatingChapter.value = true
+  try {
+    const chapter = bookStore.createChapter(t('editor.defaultChapterName'))
+    if (chapter) {
+      bookStore.selectChapter(bookStore.activeBookId, chapter.id)
+      editorStore.updateContent('')
+    }
+  } finally {
+    setTimeout(() => { creatingChapter.value = false }, 300)
   }
 }
 

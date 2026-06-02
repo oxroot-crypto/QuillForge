@@ -87,20 +87,23 @@ pub async fn generate_book_info(
     state: State<'_, AppState>,
     prompt: String,
     config: ModelConfig,
+    char_count: Option<usize>,
     app_handle: tauri::AppHandle,
 ) -> Result<GeneratedBookInfo, String> {
     let api_key = get_api_key_internal(&state, &config.provider, &app_handle)?;
+    let count = char_count.unwrap_or(15).clamp(1, 50);
 
-    let system_prompt = [
-        "你是一位专业的网文小说创作助手。根据用户的描述，生成一部完整的小说设定。",
-        "请严格按以下JSON格式输出，不要输出任何其他内容，不要使用markdown代码块包装：",
-        r#"{"title": "小说书名", "description": "小说简介", "world_setting": "世界观设定", "characters": [{"name": "角色名", "role": "主角/配角/反派/路人", "description": "角色描述"}]}"#,
-        "要求：",
-        "- 书名要吸引人，符合网文风格",
-        "- 世界观要有特色，设定完整且有条理",
-        "- 角色要鲜活，至少生成2-4个角色",
-        "- 所有内容必须用中文输出",
-    ].join("\n");
+    let system_prompt = format!(
+        "你是一位专业的网文小说创作助手。根据用户的描述，生成一部完整的小说设定。\n\
+        请严格按以下JSON格式输出，不要输出任何其他内容，不要使用markdown代码块包装：\n\
+        {{\"title\": \"小说书名\", \"description\": \"小说简介\", \"world_setting\": \"世界观设定\", \
+         \"characters\": [{{\"name\": \"角色名\", \"role\": \"主角/配角/反派/路人\", \"description\": \"角色描述\"}}]}}\n\
+        要求：\n\
+        - 书名要吸引人，符合网文风格\n\
+        - 世界观要有特色，设定完整且有条理\n\
+        - 角色要鲜活，请生成{count}个角色（包含主角、配角、反派、路人等，角色定位要丰富多样）\n\
+        - 所有内容必须用中文输出"
+    );
 
     let user_message = format!("请根据以下描述生成一部小说的完整设定：\n\n{}", prompt);
 

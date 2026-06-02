@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AiAction } from '@/types'
+import { countWords } from '@/utils/content'
 
 export const useEditorStore = defineStore('editor', () => {
   const content = ref('')
@@ -15,7 +16,7 @@ export const useEditorStore = defineStore('editor', () => {
   const cancelRequested = ref<Record<string, boolean>>({})
 
   const wordCount = computed(() => {
-    return content.value.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
+    return countWords(content.value)
   })
   const hasSelection = computed(() => selectedText.value.length > 0)
   const hasContent = computed(() => {

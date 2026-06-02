@@ -81,6 +81,7 @@ import { sendAiMessage } from '@/commands/ai'
 import { saveSnapshot } from '@/commands/history'
 import { focusEditor } from '@/extensions/ghost-text'
 import LoadingDots from '@/components/common/LoadingDots.vue'
+import { countWords } from '@/utils/content'
 
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
@@ -124,7 +125,7 @@ function buildContext(): string {
   }
   if (book.chapters.length > 0) {
     const titles = book.chapters.map((c, i) =>
-      `${i + 1}. ${c.title}（${c.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length}字）`
+      `${i + 1}. ${c.title}（${countWords(c.content)}字）`
     ).join('\n')
     parts.push(`【已有章节】\n${titles}`)
     // Include last chapter content for continuity
@@ -143,10 +144,6 @@ function getLengthHint(): string {
     case 'long': return '篇幅约1500-2500字，详细展开。'
     default: return '篇幅约800-1200字，适中。'
   }
-}
-
-function countWords(html: string): number {
-  return html.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
 }
 
 async function doGenerate() {

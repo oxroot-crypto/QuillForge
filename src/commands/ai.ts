@@ -25,6 +25,7 @@ export async function checkProviderConnection(
 export async function generateBookInfo(
   prompt: string,
   config: ModelConfig,
+  charCount?: number,
 ): Promise<GeneratedBookInfo> {
-  return invoke('generate_book_info', { prompt, config })
+  return invoke('generate_book_info', { prompt, config, charCount })
 }

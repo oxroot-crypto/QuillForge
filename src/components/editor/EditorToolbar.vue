@@ -1,6 +1,18 @@
 <template>
   <div class="toolbar">
-    <div class="toolbar-group">
+    <div class="toolbar-group toolbar-left">
+      <button
+        class="panel-btn sidebar-btn"
+        :class="{ collapsed: sidebarCollapsed }"
+        :title="'侧边栏 (Ctrl+Shift+B)'"
+        @click="$emit('toggleSidebar')"
+      >
+        <span class="hamburger">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </span>
+      </button>
       <button
         class="toolbar-btn"
         :title="$t('search.title')"
@@ -8,8 +20,25 @@
       >
         &#128269; {{ $t('search.title') }}
       </button>
+      <button
+        class="toolbar-btn"
+        :class="{ active: agentsVisible }"
+        :title="$t('agents.title')"
+        @click="$emit('toggleAgents')"
+      >
+        &#9881; CLI
+      </button>
     </div>
     <div class="toolbar-group toolbar-right">
+      <button
+        class="panel-btn ai-panel-btn"
+        :class="{ collapsed: aiPanelCollapsed }"
+        :title="'AI面板 (Ctrl+Shift+P)'"
+        @click="$emit('toggleAiPanel')"
+      >
+        <span class="ai-indicator"></span>
+        <span class="ai-btn-label">AI</span>
+      </button>
       <select class="model-select" :value="settingsStore.activePresetId" @change="settingsStore.selectPreset(($event.target as HTMLSelectElement).value)">
         <option v-for="p in settingsStore.presets" :key="p.id" :value="p.id">
           {{ p.name }}
@@ -35,9 +64,18 @@ import { useThemeStore } from '@/stores/theme'
 import { useI18nStore } from '@/stores/i18n'
 import { useSettingsStore } from '@/stores/settings'
 
-const emit = defineEmits<{
+defineProps<{
+  agentsVisible?: boolean
+  sidebarCollapsed?: boolean
+  aiPanelCollapsed?: boolean
+}>()
+
+defineEmits<{
   openSettings: []
   openSearch: []
+  toggleAgents: []
+  toggleSidebar: []
+  toggleAiPanel: []
 }>()
 
 const { locale } = useI18n()
@@ -56,10 +94,10 @@ function onLangChange(e: Event) {
 .toolbar {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  gap: 4px;
+  gap: 2px;
   backdrop-filter: blur(8px);
 }
 
@@ -69,17 +107,21 @@ function onLangChange(e: Event) {
   align-items: center;
 }
 
+.toolbar-left {
+  margin-right: auto;
+}
+
 .toolbar-right {
   margin-left: auto;
 }
 
 .toolbar-btn {
-  padding: 7px 14px;
+  padding: 6px 12px;
   border: 1px solid transparent;
   background: transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 500;
   color: var(--color-text-muted);
   transition: all var(--transition-fast);
@@ -95,6 +137,98 @@ function onLangChange(e: Event) {
   color: #fff;
   border-color: var(--color-accent);
   box-shadow: 0 2px 8px var(--color-accent-light);
+}
+
+/* ── Panel Buttons ── */
+.panel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: calc(var(--radius-sm) + 1px);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all 0.18s ease;
+  outline: none;
+  position: relative;
+}
+.panel-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  box-shadow: 0 0 0 3px var(--color-accent-light);
+}
+.panel-btn.collapsed {
+  border-color: transparent;
+  background: transparent;
+  opacity: 0.5;
+}
+.panel-btn.collapsed:hover {
+  opacity: 0.85;
+  border-color: var(--color-border);
+  background: var(--color-hover);
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+/* ── Sidebar hamburger ── */
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 2px 0;
+}
+.hamburger-line {
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: all 0.25s ease;
+  transform-origin: center;
+}
+.hamburger-line:nth-child(2) { width: 12px; }
+.hamburger-line:nth-child(3) { width: 8px; }
+
+.sidebar-btn.collapsed .hamburger-line {
+  width: 16px;
+}
+.sidebar-btn.collapsed .hamburger-line:nth-child(1) {
+  transform: translateY(5px) rotate(45deg);
+  width: 16px;
+}
+.sidebar-btn.collapsed .hamburger-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.sidebar-btn.collapsed .hamburger-line:nth-child(3) {
+  transform: translateY(-5px) rotate(-45deg);
+  width: 16px;
+}
+
+/* ── AI panel button ── */
+.ai-panel-btn {
+  gap: 6px;
+  padding: 6px 14px 6px 12px;
+}
+.ai-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent-light);
+  transition: all 0.25s ease;
+}
+.ai-panel-btn.collapsed .ai-indicator {
+  background: var(--color-text-muted);
+  box-shadow: none;
+}
+.ai-btn-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .model-select {

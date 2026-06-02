@@ -2,12 +2,30 @@
   <div class="app-shell">
     <TitleBar />
     <div class="app-layout">
-      <BookSidebar />
-      <div class="main-area">
-        <EditorToolbar @openSettings="$emit('openSettings')" @openSearch="showSearch = true" />
-        <NovelEditor @showHistory="showHistory = true" />
+      <div class="sidebar-wrap" :class="{ collapsed: sidebarCollapsed }">
+        <div class="panel-inner">
+          <BookSidebar />
+        </div>
       </div>
-      <AiPanel />
+      <div class="main-area">
+        <EditorToolbar
+          :agentsVisible="showAgents"
+          :sidebarCollapsed="sidebarCollapsed"
+          :aiPanelCollapsed="aiPanelCollapsed"
+          @openSettings="$emit('openSettings')"
+          @openSearch="showSearch = true"
+          @toggleAgents="showAgents = !showAgents"
+          @toggleSidebar="sidebarCollapsed = !sidebarCollapsed"
+          @toggleAiPanel="aiPanelCollapsed = !aiPanelCollapsed"
+        />
+        <NovelEditor @showHistory="showHistory = true" />
+        <AgentsCli :visible="showAgents" @close="showAgents = false" />
+      </div>
+      <div class="aipanel-wrap" :class="{ collapsed: aiPanelCollapsed }">
+        <div class="panel-inner">
+          <AiPanel />
+        </div>
+      </div>
     </div>
 
     <!-- Dialogs -->
@@ -32,6 +50,7 @@ import NovelEditor from '@/components/editor/NovelEditor.vue'
 import AiPanel from '@/components/ai/AiPanel.vue'
 import SearchDialog from '@/components/common/SearchDialog.vue'
 import ChapterHistory from '@/components/editor/ChapterHistory.vue'
+import AgentsCli from '@/components/editor/AgentsCli.vue'
 
 defineEmits<{
   openSettings: []
@@ -43,6 +62,9 @@ let errorTimer: ReturnType<typeof setTimeout> | null = null
 
 const showSearch = ref(false)
 const showHistory = ref(false)
+const showAgents = ref(false)
+const sidebarCollapsed = ref(false)
+const aiPanelCollapsed = ref(false)
 
 function dismissError() {
   errorMsg.value = ''
@@ -72,6 +94,24 @@ function onKeydown(e: KeyboardEvent) {
     focusEditor()
     return
   }
+  // Ctrl/Cmd+Shift+A: Toggle Agents CLI
+  if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.code === 'KeyA') {
+    e.preventDefault()
+    showAgents.value = !showAgents.value
+    return
+  }
+  // Ctrl/Cmd+Shift+B: Toggle BookSidebar
+  if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.code === 'KeyB') {
+    e.preventDefault()
+    sidebarCollapsed.value = !sidebarCollapsed.value
+    return
+  }
+  // Ctrl/Cmd+Shift+P: Toggle AI Panel
+  if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.code === 'KeyP') {
+    e.preventDefault()
+    aiPanelCollapsed.value = !aiPanelCollapsed.value
+    return
+  }
 }
 
 onMounted(() => {
@@ -97,11 +137,45 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.sidebar-wrap,
+.aipanel-wrap {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-wrap {
+  width: 240px;
+  min-width: 240px;
+}
+.sidebar-wrap.collapsed {
+  width: 0;
+  min-width: 0;
+}
+.aipanel-wrap {
+  width: 320px;
+  min-width: 320px;
+}
+.aipanel-wrap.collapsed {
+  width: 0;
+  min-width: 0;
+}
+
+.panel-inner {
+  width: 240px;
+  height: 100%;
+  overflow: hidden;
+}
+.aipanel-wrap .panel-inner {
+  width: 320px;
+}
+
 .main-area {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
 .global-error {

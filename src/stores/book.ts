@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import type { Book, Chapter, ChapterStatus, Character, OutlineItem, DailyStats } from '@/types'
 import { saveAllBooks, loadAllBooks } from '@/commands/storage'
 import { indexChapter, removeChapterIndex } from '@/commands/search'
+import { countWords } from '@/utils/content'
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -109,8 +110,8 @@ export const useBookStore = defineStore('book', () => {
     if (!book) return
     const chapter = book.chapters.find((c) => c.id === chapterId)
     if (chapter) {
-      const oldPlainLen = chapter.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
-      const newPlainLen = content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
+      const oldPlainLen = countWords(chapter.content)
+      const newPlainLen = countWords(content)
       const delta = newPlainLen - oldPlainLen
 
       chapter.content = content
@@ -398,7 +399,7 @@ export const useBookStore = defineStore('book', () => {
     const book = books.value.find((b) => b.id === bookId)
     if (!book) return { chapters: 0, words: 0, characters: 0 }
     const words = book.chapters.reduce(
-      (sum, c) => sum + c.content.replace(/<[^>]*>/g, '').replace(/\s/g, '').length,
+      (sum, c) => sum + countWords(c.content),
       0,
     )
     return {

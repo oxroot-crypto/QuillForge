@@ -124,6 +124,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useBookStore } from '@/stores/book'
+import { countWords } from '@/utils/content'
 
 const { t } = useI18n()
 const editorStore = useEditorStore()
@@ -328,7 +329,7 @@ const chapterStats = computed(() => {
   const lengths = sentenceLengths.value
   const dialogue = countDialogue(text)
   return {
-    words: text.replace(/\s/g, '').length,
+    words: countWords(content.value),
     sentences,
     paragraphs: countParagraphs(content.value),
     avgSentenceLen: sentences > 0 ? Math.round(text.replace(/\s/g, '').length / sentences) : 0,
@@ -348,7 +349,7 @@ const bookStats = computed(() => {
   let totalDialogueRatio = 0
   for (const ch of book.chapters) {
     const text = stripHtml(ch.content)
-    totalWords += text.replace(/\s/g, '').length
+    totalWords += countWords(ch.content)
     totalDialogueRatio += countDialogue(text).ratio
   }
   return {

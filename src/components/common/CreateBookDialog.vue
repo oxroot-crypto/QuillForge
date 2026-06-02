@@ -103,10 +103,41 @@
                     v-model="aiPrompt"
                     class="modern-textarea"
                     :placeholder="t('book.aiPromptPlaceholder')"
-                    rows="5"
+                    rows="4"
                   ></textarea>
                   <div class="textarea-focus-ring"></div>
                 </div>
+
+                <!-- Character count control -->
+                <div class="char-count-control">
+                  <div class="char-count-header">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>{{ t('book.charCountLabel') }}</span>
+                    <span class="char-count-value">{{ charCount }}</span>
+                  </div>
+                  <div class="char-count-slider-row">
+                    <input
+                      type="range"
+                      class="char-range"
+                      min="1"
+                      max="50"
+                      v-model.number="charCount"
+                    />
+                    <div class="char-range-labels">
+                      <span>1</span>
+                      <span>10</span>
+                      <span>20</span>
+                      <span>30</span>
+                      <span>50</span>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   class="btn-generate"
                   :disabled="generating || !aiPrompt.trim()"
@@ -255,6 +286,7 @@ const settingsStore = useSettingsStore()
 const mode = ref<'manual' | 'ai'>('manual')
 const manualTitle = ref('')
 const aiPrompt = ref('')
+const charCount = ref(15)
 const generating = ref(false)
 const generated = ref(false)
 const editedBook = ref<GeneratedBookInfo>({
@@ -296,7 +328,7 @@ async function onGenerate() {
 
   generating.value = true
   try {
-    const result = await generateBookInfo(aiPrompt.value.trim(), settingsStore.modelConfig)
+    const result = await generateBookInfo(aiPrompt.value.trim(), settingsStore.modelConfig, charCount.value)
     editedBook.value = result
     generated.value = true
   } catch (e: unknown) {
@@ -593,6 +625,85 @@ onMounted(() => {
   opacity: 0.6;
 }
 
+/* ── Character Count Control ── */
+.char-count-control {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+
+.char-count-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 580;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.char-count-value {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--color-accent);
+  min-width: 24px;
+  text-align: center;
+}
+
+.char-count-slider-row {
+  padding: 0 2px;
+}
+
+.char-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  outline: none;
+  cursor: pointer;
+}
+
+.char-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  box-shadow: 0 1px 4px var(--color-accent-light);
+  transition: transform 0.12s ease;
+}
+
+.char-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.char-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px var(--color-accent-light);
+}
+
+.char-range-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  padding: 0 1px;
+}
+
 /* ── Generate Button ── */
 .btn-generate {
   width: 100%;
@@ -787,7 +898,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
 }
 

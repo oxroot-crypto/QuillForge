@@ -77,6 +77,7 @@ import { sendAiMessage } from '@/commands/ai'
 import { saveSnapshot } from '@/commands/history'
 import { focusEditor } from '@/extensions/ghost-text'
 import LoadingDots from '@/components/common/LoadingDots.vue'
+import { countWords } from '@/utils/content'
 
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
@@ -117,10 +118,6 @@ function buildBookContext(): string {
 function getRewriteContent(): string {
   if (editorStore.selectedText) return editorStore.selectedText
   return editorStore.content.replace(/<[^>]*>/g, '')
-}
-
-function countWords(html: string): number {
-  return html.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
 }
 
 async function doRewrite() {

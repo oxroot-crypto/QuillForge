@@ -42,21 +42,55 @@
     <div v-if="editorStore.activeError" class="result-error">{{ editorStore.activeError }}</div>
 
     <div v-if="editorStore.activeResult && !editorStore.isLoading" class="result-box markdown-body" v-html="renderedResult" />
+
+    <!-- Apply review suggestions -->
+    <div v-if="editorStore.activeResult && !editorStore.isLoading" class="apply-section">
+      <button
+        class="btn-apply"
+        :disabled="applyingReview || !bookStore.activeChapterId"
+        @click="doApplyReview"
+      >
+        <LoadingDots v-if="applyingReview" />
+        <template v-else>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          {{ $t('ai.reviewApplyBtn') }}
+        </template>
+      </button>
+    </div>
+
+    <!-- Apply result state -->
+    <div v-if="applyApplied" class="applied-box">
+      <div class="applied-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span>{{ $t('ai.reviewApplied') }}</span>
+        <span class="applied-words">{{ appliedWords }} {{ $t('history.words') }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSettingsStore } from '@/stores/settings'
 import { useBookStore } from '@/stores/book'
 import { sendAiMessage } from '@/commands/ai'
+import { saveSnapshot } from '@/commands/history'
 import LoadingDots from '@/components/common/LoadingDots.vue'
 import { focusEditor } from '@/extensions/ghost-text'
+import { countWords } from '@/utils/content'
 
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
 const bookStore = useBookStore()
+
+const applyingReview = ref(false)
+const applyApplied = ref(false)
+const appliedWords = ref(0)
 
 const renderedResult = computed(() => {
   return editorStore.activeResult
@@ -115,6 +149,58 @@ function onCancel() {
   editorStore.cancelAction('review')
   editorStore.setLoading(false)
   focusEditor()
+}
+
+async function doApplyReview() {
+  const book = bookStore.activeBook
+  const chapterId = bookStore.activeChapterId
+  if (!book || !chapterId) return
+
+  const chapter = book.chapters.find((c) => c.id === chapterId)
+  if (!chapter) return
+
+  const originalContent = getReviewContent()
+  if (!originalContent.trim()) return
+  const reviewResult = editorStore.activeResult
+  if (!reviewResult.trim()) return
+
+  applyingReview.value = true
+  applyApplied.value = false
+  editorStore.setError('', 'review')
+  try {
+    const bookCtx = buildBookContext()
+    const prompt = `${originalContent}\n\n【审阅意见】\n${reviewResult}\n\n请根据以上审阅意见修改文本，直接输出修改后的文本，不要任何前缀说明或格式标记。`
+
+    const result = await sendAiMessage(settingsStore.effectiveConfig, {
+      action: 'rewrite',
+      content: prompt,
+      context: bookCtx || undefined,
+    })
+
+    const htmlBody = result.trim()
+      .split(/\n\n+/)
+      .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+      .join('')
+
+    const wc = countWords(htmlBody)
+    appliedWords.value = wc
+
+    // Auto-save snapshot before replacing
+    if (chapter.content) {
+      await saveSnapshot(book.id, chapterId, chapter.content, 'AI 审阅修改前自动保存', chapter.title)
+    }
+
+    // Auto-apply
+    bookStore.updateChapterContent(book.id, chapterId, htmlBody)
+    bookStore.selectChapter(book.id, chapterId)
+    editorStore.updateContent(htmlBody)
+    applyApplied.value = true
+  } catch (e: unknown) {
+    editorStore.setError(String(e), 'review')
+  } finally {
+    applyingReview.value = false
+    focusEditor()
+  }
 }
 
 onMounted(() => {
@@ -269,5 +355,69 @@ onBeforeUnmount(() => {
   30% { opacity: 1; }
   70% { opacity: 0; }
   100% { opacity: 0; }
+}
+
+/* ── Apply Section ── */
+.apply-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-apply {
+  width: 100%;
+  padding: 8px 16px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 570;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-apply:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.btn-apply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.applied-box {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  font-size: 0.84rem;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.applied-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #065f46;
+}
+
+.applied-words {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #047857;
+  white-space: nowrap;
 }
 </style>

@@ -1,15 +1,12 @@
 import { useBookStore } from '@/stores/book'
 import type { Snapshot } from '@/types'
+import { countWords } from '@/utils/content'
 
 export interface SnapshotInfo {
   timestamp: string
   label: string
   word_count: number
   title: string
-}
-
-function countWords(html: string): number {
-  return html.replace(/<[^>]*>/g, '').replace(/\s/g, '').length
 }
 
 // ---- In-memory snapshot operations ----
