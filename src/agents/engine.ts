@@ -205,6 +205,7 @@ export interface AgentToolCall {
  * @param onDone - Agent 结束时回调（无论成功失败）
  * @param onError - 出错时回调
  * @param isCancelled - 可选取消信号，返回 true 时 Agent 立即退出
+ * @param onRawMessage - 可选，收到 LLM 原始响应时回调（详细模式下展示中间输出）
  */
 export async function runAgent(
   userMessage: string,
@@ -217,6 +218,7 @@ export async function runAgent(
   onDone: () => void,
   onError: (err: string) => void,
   isCancelled?: () => boolean,
+  onRawMessage?: (rawText: string) => void,
 ): Promise<void> {
   const systemPrompt = buildSystemPrompt(tools, ctx)
 
@@ -276,6 +278,10 @@ export async function runAgent(
       })
 
       const cleaned = result.trim()
+
+      // 通知 UI 层原始 LLM 响应文本（详细模式下展示中间输出）
+      onRawMessage?.(cleaned)
+
       if (!cleaned) {
         conv.push({ role: 'assistant', content: '(空响应)' })
         continue
@@ -340,8 +346,9 @@ export async function runAgent(
         if (trimmed.toUpperCase().startsWith('FINAL:')) {
           const finalContent = trimmed.slice(6).trim()
 
-          // Validate: if FINAL claims completion but no actual tool was called
-          const claimPattern = /已完成|已创建|已保存|已更新|已删除|已写入|已翻译|已修改|已添加|已替换|已生成|已设置|已重命名/i
+          // Validate: if FINAL explicitly claims completion but no tool was called.
+          // Only match explicit action-claim language, not conversational uses like "已有" / "已经".
+          const claimPattern = /(?:已创建|已保存|已更新|已删除|已写入|已翻译|已修改|已添加|已替换|已生成|已设置|已重命名|已完成(?!的|了|。))/i
           if (claimPattern.test(finalContent) && !anyToolSucceeded) {
             // General claim without any tool called at all
             const hint = '你声称已完成操作，但并未实际调用任何工具。必须实际调用工具来执行操作！'
@@ -361,12 +368,11 @@ export async function runAgent(
             onToolResult(`❌ 校验失败：创建了「${chName}」但声称写了内容却未调 edit_chapter，已要求重试`)
             continue
           }
-          // Content modification claim requires write tools — but ONLY if no other tools
-          // succeeded. If the user asked for book settings/characters and those tools
-          // ran fine, let FINAL through even if chapter content wasn't written.
+          // Content modification claim requires write tools — only when no other tools
+          // succeeded AND FINAL contains explicit writing-creation language.
+          // Narrow patterns to avoid matching observations like "已有3章" or greetings.
           if (!contentWritten && !anyToolSucceeded
-            && /第[一二三四五六七八九十\d零〇百千万]+[章节卷]/.test(finalContent)
-            && /完\s*成|创\s*作|已.*(?:写|翻|改|替|填|生|修)/i.test(finalContent)) {
+            && /(?:写完了?|已写完|已完成第[^创]|创作了|撰写了|编写了|生成了|写出了|已填完|已生成第|已写出)/i.test(finalContent)) {
             const hint = '你声称已修改章节内容，但并未调用 edit_chapter 或 append_chapter 工具。必须实际调用写入工具！'
             conv.push({ role: 'assistant', content: cleaned })
             conv.push({ role: 'tool', content: `错误：${hint}\nTOOL: edit_chapter | chapter=${lastCreatedChapterTitle || '章节名'} | content\n（完整正文，不要加 FINAL 或解释）` })
@@ -374,12 +380,14 @@ export async function runAgent(
             continue
           }
 
-          // Validate claimed chapter count against actual create_chapter calls
-          const chCountMatch = finalContent.match(/(\d+)\s*章/)
+          // Validate claimed chapter count against actual create_chapter calls.
+          // Only match explicit creation claims (已创建/建了/新建了/添加了 X章),
+          // never mere observations like "有5章" or "共5章" from read_book_info.
+          const chCountMatch = finalContent.match(/(?:已创建|建了|新建了|创建了|添加了|新增了)\s*(\d+)\s*章/)
           if (chCountMatch) {
             const claimed = parseInt(chCountMatch[1], 10)
             const created = toolCallCounts['create_chapter'] || 0
-            if (claimed > created && claimed > 1) {
+            if (claimed > created) {
               const hint = `你声称创建了${claimed}章，但实际只调用了${created}次 create_chapter。每一章都必须单独调用！`
               conv.push({ role: 'assistant', content: cleaned })
               conv.push({ role: 'tool', content: `错误：${hint}` })
@@ -388,8 +396,10 @@ export async function runAgent(
             }
           }
 
-          // Validate claimed character count against actual upsert_character calls
-          const charCountMatch = finalContent.match(/(\d+)\s*[位个名]\s*角色/)
+          // Validate claimed character count against actual upsert_character calls.
+          // Only match explicit creation claims (已创建/创建了/添加了/加了 X位角色),
+          // never mere observations like "有10个角色" or "共10位角色".
+          const charCountMatch = finalContent.match(/(?:已创建|创建了|添加了|新建了|加了|新增了)\s*(\d+)\s*[位个名]\s*角色/)
           if (charCountMatch && !chapterCreatedWithoutWrite) {
             const claimed = parseInt(charCountMatch[1], 10)
             const added = toolCallCounts['upsert_character'] || 0

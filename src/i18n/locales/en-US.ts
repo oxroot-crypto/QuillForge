@@ -320,6 +320,9 @@ export default {
     // Context
     ctxNoBook: 'No book open. Create or select a book from the sidebar.',
     ctxCharCount: 'Characters: {count}',
+    detailMode: 'Detail mode',
+    compactMode: 'Compact mode',
+    rawResponse: 'Raw response',
   },
   common: {
     confirm: 'Confirm',

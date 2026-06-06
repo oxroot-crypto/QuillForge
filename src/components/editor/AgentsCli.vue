@@ -12,6 +12,12 @@
         </span>
       </span>
       <div class="cli-header-actions">
+        <button
+          class="cli-btn cli-detail-toggle"
+          :class="{ active: showDetail }"
+          :title="showDetail ? $t('agents.compactMode') : $t('agents.detailMode')"
+          @click="showDetail = !showDetail"
+        >{{ showDetail ? '&#128269;' : '&#128270;' }}</button>
         <button class="cli-btn" :title="$t('agents.copyAll')" @click="copyAll">&#128203;</button>
         <button class="cli-btn" :title="$t('agents.clear')" @click="clearHistory">&#128465;</button>
         <button class="cli-btn" :title="$t('agents.close')" @click="$emit('close')">&#10005;</button>
@@ -62,6 +68,17 @@
           <div class="msg-body-tool">
             <pre class="tool-result-text" :class="{ 'text-error': isError(msg.content) }">{{ msg.content }}</pre>
           </div>
+        </template>
+
+        <!-- Raw LLM response (detail mode) -->
+        <template v-else-if="msg.role === 'raw'">
+          <details class="raw-response">
+            <summary class="raw-summary">
+              <span class="raw-label">{{ $t('agents.rawResponse') }}</span>
+              <span class="raw-preview">{{ msg.content.slice(0, 80) }}{{ msg.content.length > 80 ? '...' : '' }}</span>
+            </summary>
+            <pre class="raw-content">{{ msg.content }}</pre>
+          </details>
         </template>
 
         <!-- AI response -->
@@ -148,6 +165,11 @@ const cancelled = ref(false)
 const connected = ref(false)
 const cliHeight = ref(300)
 const resizing = ref(false)
+
+// 详细模式开关——控制是否展示 Agent 中间输出（LLM 原始响应文本）
+// 偏好持久化到 localStorage，默认关闭（简洁模式）
+const DETAIL_KEY = 'quillforge_agents_detail_mode'
+const showDetail = ref(false)
 
 // ── Resize ──
 function startResize(e: MouseEvent) {
@@ -351,6 +373,12 @@ async function runAgentOnQuery(query: string) {
     },
     // isCancelled
     () => cancelled.value,
+    // onRawMessage — 详细模式下展示 LLM 原始响应文本（在回调内检查以便运行时切换即时生效）
+    (rawText) => {
+      if (showDetail.value) {
+        messages.value.push({ role: 'raw', content: rawText })
+      }
+    },
   )
 }
 
@@ -549,8 +577,18 @@ async function checkConnection() {
   connTimer = setTimeout(checkConnection, 30000)
 }
 
-onMounted(() => { checkConnection() })
+onMounted(() => {
+  checkConnection()
+  // 从 localStorage 恢复详细模式偏好
+  const saved = localStorage.getItem(DETAIL_KEY)
+  if (saved !== null) showDetail.value = saved === '1'
+})
 onBeforeUnmount(() => { if (connTimer) clearTimeout(connTimer) })
+
+// 详细模式偏好变更时持久化到 localStorage
+watch(showDetail, (v) => {
+  localStorage.setItem(DETAIL_KEY, v ? '1' : '0')
+})
 
 watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus()) })
 </script>
@@ -764,4 +802,60 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
 .cli-send:disabled { opacity: 0.35; cursor: not-allowed; }
 .cli-stop { background: var(--color-danger); font-size: 0.8rem; }
 .cli-stop:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger) 75%, black); }
+
+/* ── Raw LLM response (detail mode) ── */
+.raw-response {
+  margin: 2px 0 4px 22px;
+  font-size: 0.68rem;
+}
+.raw-summary {
+  cursor: pointer;
+  color: var(--color-cli-text-disabled);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 2px 0;
+  user-select: none;
+  list-style: none;
+}
+.raw-summary::-webkit-details-marker { display: none; }
+.raw-summary:hover { color: var(--color-cli-text-dim); }
+.raw-summary::before {
+  content: '▸';
+  display: inline-block;
+  font-size: 0.6rem;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+details[open] > .raw-summary::before { transform: rotate(90deg); }
+.raw-label {
+  font-weight: 600;
+  color: var(--color-cli-accent);
+  font-size: 0.65rem;
+  flex-shrink: 0;
+}
+.raw-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+}
+.raw-content {
+  background: var(--color-cli-surface);
+  border: 1px solid var(--color-cli-border-subtle);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 4px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 0.66rem;
+  color: var(--color-cli-text-muted);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ── Detail toggle button ── */
+.cli-detail-toggle.active {
+  color: var(--color-accent) !important;
+}
 </style>

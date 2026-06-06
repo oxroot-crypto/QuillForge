@@ -37,7 +37,7 @@ export interface AgentMessage {
 
 /** Agent CLI 界面中的一条消息——用户输入、AI 回复、工具调用/结果、错误 */
 export interface CliMessage {
-  role: 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'error'
+  role: 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'error' | 'raw'
   content: string
   toolCall?: { name: string; args: Record<string, string> }
   status?: 'running' | 'done'

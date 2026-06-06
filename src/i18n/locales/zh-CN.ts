@@ -325,6 +325,9 @@ export default {
     // Context
     ctxNoBook: '当前没有打开的书籍。请先在左侧创建或选择一本书。',
     ctxCharCount: '角色数量: {count}',
+    detailMode: '详细模式',
+    compactMode: '简洁模式',
+    rawResponse: '原始响应',
   },
   common: {
     confirm: '确定',
