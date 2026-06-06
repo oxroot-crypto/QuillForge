@@ -262,7 +262,7 @@ onBeforeUnmount(() => {
 }
 
 .ProseMirror mark {
-  background: #fef08a;
+  background: var(--color-highlight-mark);
   color: inherit;
   padding: 1px 3px;
   border-radius: 3px;
@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
 
 /* Spell check error underline */
 .spell-error {
-  text-decoration: wavy underline #ef4444;
+  text-decoration: wavy underline var(--color-danger);
   text-underline-offset: 3px;
   cursor: help;
 }
@@ -418,7 +418,7 @@ onBeforeUnmount(() => {
 }
 
 .header-btn-focus.active {
-  background: #f59e0b;
+  background: var(--color-warning);
   color: var(--color-text-on-accent);
   border-color: var(--color-warning);
 }

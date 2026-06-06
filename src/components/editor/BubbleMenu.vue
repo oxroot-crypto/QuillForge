@@ -1,3 +1,4 @@
+<!-- TipTap 浮动格式工具栏——选中文本时弹出，支持粗体/斜体/下划线/删除线/高亮/标题/分隔线 -->
 <template>
   <bubble-menu
     v-if="editor"
@@ -49,7 +50,7 @@
         @click="editor.chain().focus().toggleHighlight().run()"
         :title="t('editor.formatHighlight')"
       >
-        <span style="background: #fef08a; padding: 0 2px; border-radius: 2px;">A</span>
+        <span class="highlight-btn-label">A</span>
       </button>
       <button
         class="bubble-btn"
@@ -135,5 +136,12 @@ function toggleHeading() {
 .bubble-btn.active {
   background: var(--color-accent);
   color: var(--color-text-on-accent);
+}
+
+/* 高亮按钮标签——黄色背景真实还原 mark 标记颜色 */
+.highlight-btn-label {
+  background: var(--color-highlight-mark);
+  padding: 0 2px;
+  border-radius: 2px;
 }
 </style>

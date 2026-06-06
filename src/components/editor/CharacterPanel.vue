@@ -1,3 +1,4 @@
+<!-- 角色管理面板——列表展示书籍角色，支持增删改角色档案（姓名/身份/描述/备注），AI 一键生成 -->
 <template>
   <div class="character-panel">
     <div class="char-list">

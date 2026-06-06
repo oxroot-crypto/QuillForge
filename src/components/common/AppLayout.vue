@@ -1,3 +1,4 @@
+<!-- 应用主布局——三栏式结构（侧边栏⫶编辑区⫶AI面板），管理全局快捷键（Ctrl+Shift+组合键）和底部错误 Toast -->
 <template>
   <div class="app-shell">
     <TitleBar />

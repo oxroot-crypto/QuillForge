@@ -26,6 +26,7 @@ function savePresetsToDisk(presets: ModelPreset[]) {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
+  // ===== 核心状态 =====
   const providers = ref<ProviderInfo[]>([])
   const presets = ref<ModelPreset[]>(loadPresets())
   const activePresetId = ref<string>(presets.value[0]?.id || '')
@@ -33,36 +34,42 @@ export const useSettingsStore = defineStore('settings', () => {
   const keyStatus = ref<Record<string, boolean>>({})
   const connectionStatus = ref<string>('')
 
-  // Active config derived from active preset
+  // ===== 计算属性 =====
+  /** 从活跃预设派生的模型配置——provider/model/api_base/temperature 等 */
   const modelConfig = computed<ModelConfig>(() => {
     const p = presets.value.find((x) => x.id === activePresetId.value)
     return p?.config || defaultConfig()
   })
 
-  // Config with template system prompt override (used by AI actions)
+  /** 含模板提示词覆盖的有效配置——system_prompt 由 Rust 端硬编码，模板提示词另行拼接 */
   const templateStore = useTemplateStore()
   const effectiveConfig = computed<ModelConfig>(() => {
     const base = modelConfig.value
     const activeTpl = templateStore.activeTemplate
     if (activeTpl && activeTpl.systemPrompt) {
-      return { ...base, system_prompt: '' } // Template prompt is appended to content instead
+      return { ...base, system_prompt: '' }
     }
     return base
   })
 
+  /** 当前选中模板的 system 提示词 */
   const templateSystemPrompt = computed<string>(() => {
     const tpl = templateStore.activeTemplate
     return (tpl && tpl.systemPrompt) ? tpl.systemPrompt : ''
   })
 
+  /** 当前 provider 的 ProviderInfo */
   const currentProvider = computed(() =>
     providers.value.find((p) => p.id === modelConfig.value.provider),
   )
 
+  /** 当前活跃的预设对象 */
   const activePreset = computed(() =>
     presets.value.find((x) => x.id === activePresetId.value),
   )
 
+  // ===== 默认配置 =====
+  /** 返回系统硬编码的默认模型配置——provider=openai, model=gpt-4o */
   function defaultConfig(): ModelConfig {
     return {
       provider: 'openai',
@@ -74,15 +81,18 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  /** 从 Rust 后端加载所有支持的 LLM 提供商列表 */
   async function loadProviders() {
     providers.value = await getSupportedProviders()
   }
 
-  // ── Presets ──
+  // ===== 预设 CRUD =====
+  /** 切换到指定预设 */
   function selectPreset(id: string) {
     activePresetId.value = id
   }
 
+  /** 创建新预设——复制当前配置，命名格式"配置 N" */
   function createPreset(name?: string): ModelPreset {
     const preset: ModelPreset = {
       id: pid(),
@@ -96,6 +106,7 @@ export const useSettingsStore = defineStore('settings', () => {
     return preset
   }
 
+  /** 保存当前配置到预设——同名覆盖或新增 */
   function saveCurrentAsPreset(name?: string): ModelPreset {
     const preset: ModelPreset = {
       id: pid(),
@@ -103,15 +114,12 @@ export const useSettingsStore = defineStore('settings', () => {
       config: { ...modelConfig.value },
       providerConfigs: {},
     }
-    // If saving over the same named preset, replace it by name
     const activeP = activePreset.value
     if (activeP && (!name || name === activeP.name)) {
-      // User didn't specify a new name — treat as "save" on current preset
       Object.assign(activeP, preset)
       persist()
       return activeP
     }
-    // Otherwise, check if name already exists, and only then replace
     const idx = presets.value.findIndex((x) => x.name === preset.name)
     if (idx >= 0) {
       presets.value[idx] = preset
@@ -124,6 +132,7 @@ export const useSettingsStore = defineStore('settings', () => {
     return preset
   }
 
+  /** 删除预设——至少保留一个，删除当前活跃时自动切到首个 */
   function deletePreset(id: string) {
     if (presets.value.length <= 1) return
     const idx = presets.value.findIndex((x) => x.id === id)
@@ -135,6 +144,7 @@ export const useSettingsStore = defineStore('settings', () => {
     persist()
   }
 
+  /** 更新预设元信息 */
   function updatePreset(id: string, data: Partial<ModelPreset>) {
     const p = presets.value.find((x) => x.id === id)
     if (p) {
@@ -144,10 +154,10 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  /** 更新当前活跃配置——切换 provider 时自动存档旧 provider 的 model/api_base */
   function updateActiveConfig(partial: Partial<ModelConfig>) {
     const p = presets.value.find((x) => x.id === activePresetId.value)
     if (!p) return
-    // 切换 provider 前，先把当前 provider 的 model/api_base 存档
     if (partial.provider && partial.provider !== p.config.provider) {
       p.providerConfigs ??= {}
       p.providerConfigs[p.config.provider] = {
@@ -159,7 +169,8 @@ export const useSettingsStore = defineStore('settings', () => {
     persist()
   }
 
-  // ── API Keys ──
+  // ===== API Key 管理 =====
+  /** 刷新所有 provider 的 Key 状态和掩码显示 */
   async function refreshKeyStatus() {
     for (const p of providers.value) {
       keyStatus.value[p.id] = await hasApiKey(p.id)
@@ -169,48 +180,57 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  /** 保存当前 provider 的 API Key 到加密存储 */
   async function storeApiKey(apiKey: string) {
     await saveApiKey(modelConfig.value.provider, apiKey)
     await refreshKeyStatus()
   }
 
+  /** 删除当前 provider 的 API Key */
   async function removeApiKey() {
     await deleteApiKey(modelConfig.value.provider)
     await refreshKeyStatus()
   }
 
+  // ===== 持久化 =====
+  /** 将预设列表写入 localStorage */
   function persist() {
     savePresetsToDisk(presets.value)
   }
 
-  // Auto-persist
+  // 监听预设变更自动持久化（深度监听）
   watch(presets, () => persist(), { deep: true })
 
-  // Ensure at least one preset
+  // 确保至少有一个预设
   if (presets.value.length === 0) {
     createPreset('默认配置')
   }
 
+  // ===== 导出 =====
   return {
+    // 状态
     providers,
     presets,
     activePresetId,
-    modelConfig,
-    effectiveConfig,
     maskedKeys,
     keyStatus,
     connectionStatus,
+    // 计算属性
+    modelConfig,
+    effectiveConfig,
     currentProvider,
     activePreset,
+    // 预设管理
     loadProviders,
     selectPreset,
     createPreset,
     saveCurrentAsPreset,
     deletePreset,
     updateActiveConfig,
+    updatePreset,
+    // API Key
     refreshKeyStatus,
     storeApiKey,
     removeApiKey,
-    updatePreset,
   }
 })

@@ -28,18 +28,23 @@ function makeBook(title?: string): Book {
 }
 
 export const useBookStore = defineStore('book', () => {
+  // ===== 核心状态 =====
   const books = ref<Book[]>([])
   const activeBookId = ref<string>('')
   const activeChapterId = ref<string>('')
 
+  // ===== 计算属性 =====
+  /** 当前活跃书籍对象——派生自 activeBookId */
   const activeBook = computed(() => books.value.find((b) => b.id === activeBookId.value))
+  /** 活跃书籍的所有章节列表 */
   const activeBookChapters = computed(() => activeBook.value?.chapters || [])
+  /** 当前活跃章节对象——派生自 activeChapterId，未找到返回 undefined */
   const activeChapter = computed(() => {
     if (!activeBook.value) return undefined
     return activeBook.value.chapters.find((c) => c.id === activeChapterId.value)
   })
 
-  // ---- Book CRUD ----
+  // ===== 书籍 CRUD =====
   function createBook(title?: string): Book {
     const book = makeBook(title)
     books.value.push(book)
@@ -79,7 +84,7 @@ export const useBookStore = defineStore('book', () => {
     }
   }
 
-  // ---- Chapter CRUD ----
+  // ===== 章节 CRUD =====
   function createChapter(title?: string): Chapter | undefined {
     const book = activeBook.value
     if (!book) return undefined
@@ -145,7 +150,7 @@ export const useBookStore = defineStore('book', () => {
     return undefined // active chapter is tracked by editor store via content
   }
 
-  // ---- Character CRUD ----
+  // ===== 角色 CRUD =====
   function addCharacter(char?: Partial<Character>): Character | undefined {
     const book = activeBook.value
     if (!book) return undefined
@@ -180,7 +185,7 @@ export const useBookStore = defineStore('book', () => {
     book.updatedAt = new Date().toISOString()
   }
 
-  // ---- Outline CRUD ----
+  // ===== 大纲 CRUD =====
   function addOutlineItem(item?: Partial<OutlineItem>): OutlineItem | undefined {
     const book = activeBook.value
     if (!book) return undefined
@@ -226,7 +231,7 @@ export const useBookStore = defineStore('book', () => {
     book.updatedAt = new Date().toISOString()
   }
 
-  // ---- Outline <-> Chapter linking ----
+  // ===== 大纲-章节关联 =====
   function linkOutlineToChapter(outlineItemId: string, chapterId: string) {
     const book = activeBook.value
     if (!book) return
@@ -274,7 +279,7 @@ export const useBookStore = defineStore('book', () => {
     return `【当前章节大纲】${outline.title}${outline.description ? `：${outline.description}` : ''}`
   }
 
-  // ---- Chapter Status ----
+  // ===== 章节状态 =====
   function updateChapterStatus(bookId: string, chapterId: string, status: ChapterStatus) {
     const book = books.value.find((b) => b.id === bookId)
     if (!book) return
@@ -286,7 +291,7 @@ export const useBookStore = defineStore('book', () => {
     }
   }
 
-  // ---- Writing Goal & Daily Stats ----
+  // ===== 写作目标与每日统计 =====
   const dailyGoal = ref(2000)
   const dailyStats = ref<DailyStats[]>([])
   // Internal tracking
@@ -411,7 +416,7 @@ export const useBookStore = defineStore('book', () => {
     }
   }
 
-  // ---- Persistence ----
+  // ===== 持久化 =====
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let lastSavedSnapshot: string = ''
 
@@ -465,7 +470,7 @@ export const useBookStore = defineStore('book', () => {
     )
   }
 
-  // ---- Auto-index (debounced) ----
+  // ===== 自动索引（防抖） =====
   let indexTimer: ReturnType<typeof setTimeout> | null = null
   const indexedChapters = new Set<string>()
 
@@ -503,27 +508,33 @@ export const useBookStore = defineStore('book', () => {
     )
   }
 
+  // ===== 导出 =====
   return {
+    // 状态
     books,
     activeBookId,
     activeChapterId,
+    // 计算属性
     activeBook,
     activeBookChapters,
     activeChapter,
+    // 书籍 CRUD
     createBook,
     deleteBook,
     selectBook,
     selectChapter,
     updateBookMeta,
+    // 章节 CRUD
     createChapter,
     deleteChapter,
     updateChapterContent,
     renameChapter,
     getActiveChapter,
+    // 角色 CRUD
     addCharacter,
     updateCharacter,
     deleteCharacter,
-    getBookStats,
+    // 大纲
     addOutlineItem,
     updateOutlineItem,
     deleteOutlineItem,
@@ -532,12 +543,14 @@ export const useBookStore = defineStore('book', () => {
     unlinkOutlineFromChapter,
     getOutlineForChapter,
     buildOutlineContext,
+    // 持久化 & 索引
     saveToDisk,
     loadFromDisk,
     removeChapterFromIndex,
-    // Chapter status
+    getBookStats,
+    // 章节状态
     updateChapterStatus,
-    // Writing goal & daily stats
+    // 写作目标 & 每日统计
     dailyGoal,
     dailyStats,
     setDailyGoal,

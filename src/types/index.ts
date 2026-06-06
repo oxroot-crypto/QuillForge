@@ -146,3 +146,22 @@ export interface ConsistencyIssue {
   desc: string
 }
 
+/** 提示词模板——关联特定 AI action，提供 system/user 提示词覆盖 */
+export interface PromptTemplate {
+  id: string
+  name: string
+  description: string
+  action: string
+  systemPrompt: string
+  userPrompt?: string
+  tags: string[]
+  locale: string
+  builtIn: boolean
+}
+
+/** 主题偏好——亮色/暗色两种模式，持久化到 localStorage */
+export type Theme = 'dark' | 'light'
+
+/** 界面语言——中文/英文两种，默认 zh-CN */
+export type Locale = 'zh-CN' | 'en-US'
+

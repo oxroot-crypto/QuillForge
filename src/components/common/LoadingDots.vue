@@ -1,3 +1,4 @@
+<!-- 三点加载动画——CSS 脉动效果，展示"思考中…"文本，用于各种加载状态的通用占位组件 -->
 <template>
   <span class="loading-dots">
     <span>{{ $t('ai.thinking') }}</span>

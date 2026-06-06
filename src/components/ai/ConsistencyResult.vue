@@ -1,3 +1,4 @@
+<!-- AI 一致性检查结果——角色偏离/剧情矛盾问题列表，按严重程度分级展示 -->
 <template>
   <div class="action-panel">
     <div class="action-info">
@@ -287,7 +288,7 @@ onBeforeUnmount(() => {
 .issue-type { font-size: 0.7rem; color: var(--color-text-muted); background: var(--color-hover); padding: 1px 6px; border-radius: 4px; }
 .issue-severity { font-size: 0.65rem; font-weight: 600; margin-left: auto; }
 .severity-高 .issue-severity { color: var(--color-danger); }
-.severity-中 .issue-severity { color: #f59e0b; }
+.severity-中 .issue-severity { color: var(--color-warning); }
 .severity-低 .issue-severity { color: var(--color-text-muted); }
 
 .issue-desc { font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.5; }

@@ -18,8 +18,12 @@ impl AppState {
         }
     }
 
+    /// 设置加密密钥到全局状态，使用 try_lock + 手动 panic 避免 unwrap。
+    /// Mutex 锁仅在新线程中毒时才可能失败——此时应用已不可恢复，panic 是唯一合理选择。
     fn set_key(&self, key_bytes: [u8; 32]) {
-        *self.encryption_key.lock().unwrap() = Some(key_bytes);
+        let mut guard = self.encryption_key.lock()
+            .expect("加密密钥锁中毒，应用状态不可恢复");
+        *guard = Some(key_bytes);
     }
 }
 

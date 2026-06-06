@@ -25,10 +25,13 @@
   --color-role-background: #6b7280;
   /* 语义色——警告/成功 */
   --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
   --color-warning-bg: rgba(245, 158, 11, 0.12);
   --color-warning-border: #fbbf24;
   --color-success-bg: rgba(52, 211, 153, 0.1);
   --color-success-border: #34d399;
+  /* 编辑器专用色 */
+  --color-highlight-mark: rgba(254, 240, 138, 0.3);
   /* 覆盖色——用于彩色背景上的白色文字 */
   --color-text-on-accent: #ffffff;
   --color-markdown-strong: #f0f0f0;
@@ -82,10 +85,13 @@
   --color-role-background: #6b7280;
   /* 语义色——警告/成功 */
   --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
   --color-warning-bg: rgba(245, 158, 11, 0.08);
   --color-warning-border: #f59e0b;
   --color-success-bg: rgba(16, 185, 129, 0.06);
   --color-success-border: #10b981;
+  /* 编辑器专用色 */
+  --color-highlight-mark: rgba(254, 240, 138, 0.5);
   /* 覆盖色 */
   --color-text-on-accent: #ffffff;
   --color-markdown-strong: #1a1a2e;
@@ -133,10 +139,13 @@
     --color-role-background: #6b7280;
     /* 语义色——警告/成功 */
     --color-warning: #f59e0b;
+    --color-warning-hover: #d97706;
     --color-warning-bg: rgba(245, 158, 11, 0.08);
     --color-warning-border: #f59e0b;
     --color-success-bg: rgba(16, 185, 129, 0.06);
     --color-success-border: #10b981;
+    /* 编辑器专用色 */
+    --color-highlight-mark: rgba(254, 240, 138, 0.5);
     /* 覆盖色 */
     --color-text-on-accent: #ffffff;
     --color-markdown-strong: #1a1a2e;

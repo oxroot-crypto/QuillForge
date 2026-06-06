@@ -1,3 +1,4 @@
+<!-- 写作分析面板——展示句子长度分布、对话占比、章节进度等写作数据可视化图表 -->
 <template>
   <div class="analytics-panel">
     <div class="panel-header">

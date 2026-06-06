@@ -1,3 +1,4 @@
+<!-- AI 面板主组件——标签页容器，管理审阅/脑暴/续写/改写/一致性/生成章节六个标签页，含模板选择条 -->
 <template>
   <div class="ai-panel">
     <div class="panel-header">

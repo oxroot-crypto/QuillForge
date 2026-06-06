@@ -1,3 +1,4 @@
+<!-- 全文搜索对话框——输入关键词搜索所有已索引章节，结果按匹配度排序，点击跳转到对应位置 -->
 <template>
   <div class="search-overlay" @click.self="$emit('close')">
     <div class="search-dialog">

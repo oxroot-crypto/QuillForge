@@ -1,3 +1,4 @@
+<!-- 自定义窗口标题栏——替代系统标题栏，显示应用图标（SVG）/名称、窗口控制按钮（最小化/最大化/关闭） -->
 <template>
   <div class="titlebar">
     <div class="titlebar-left" data-tauri-drag-region>

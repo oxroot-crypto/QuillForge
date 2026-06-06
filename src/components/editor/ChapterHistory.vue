@@ -1,3 +1,4 @@
+<!-- 章节快照历史——列表展示章节所有快照的时间/标签/字数，支持恢复内容和删除操作 -->
 <template>
   <div class="chapter-history">
     <div class="history-header">

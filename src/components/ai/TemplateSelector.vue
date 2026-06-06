@@ -121,8 +121,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTemplateStore } from '@/stores/templates'
-import type { PromptTemplate } from '@/stores/templates'
-import type { EditingTemplate } from '@/types'
+import type { PromptTemplate, EditingTemplate } from '@/types'
 
 defineEmits<{ close: [] }>()
 

@@ -307,9 +307,9 @@ const canConfirm = computed(() => {
 
 const roleColors: Record<string, string> = {
   '主角': 'var(--color-accent)',
-  '配角': '#6366f1',
-  '反派': '#ef4444',
-  '路人': '#6b7280',
+  '配角': 'var(--color-role-supporting)',
+  '反派': 'var(--color-role-antagonist)',
+  '路人': 'var(--color-role-background)',
 }
 
 function roleColor(role: string): string {

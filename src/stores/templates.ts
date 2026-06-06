@@ -2,19 +2,7 @@
 // 自定义模板持久化到 localStorage，内置模板硬编码只读。
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-/** 提示词模板——关联特定 AI action，提供 system/user 提示词覆盖 */
-export interface PromptTemplate {
-  id: string
-  name: string
-  description: string
-  action: string
-  systemPrompt: string
-  userPrompt?: string
-  tags: string[]
-  locale: string
-  builtIn: boolean
-}
+import type { PromptTemplate } from '@/types'
 
 function pid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -230,26 +218,34 @@ const BUILT_IN_TEMPLATES: PromptTemplate[] = [
 ]
 
 export const useTemplateStore = defineStore('templates', () => {
+  // ===== 核心状态 =====
   const customTemplates = ref<PromptTemplate[]>(loadCustomTemplates())
   const activeTemplateId = ref<string>('')
 
+  // ===== 计算属性 =====
+  /** 所有模板——内置 + 自定义，内置模板在前 */
   const allTemplates = computed(() => [...BUILT_IN_TEMPLATES, ...customTemplates.value])
 
+  /** 当前选中的模板对象 */
   const activeTemplate = computed(() =>
     allTemplates.value.find((t) => t.id === activeTemplateId.value),
   )
 
+  // ===== 模板查询 =====
+  /** 按 action 和语言筛选可用模板——内置模板仅显示当前语言，自定义模板全部显示 */
   function getTemplatesByAction(action: string, locale: string): PromptTemplate[] {
     return allTemplates.value.filter(
-      // 内置模板只显示当前语言的；自定义模板全部显示
       (t) => t.action === action && (t.builtIn ? t.locale === locale : (t.locale === locale || t.locale === 'zh-CN')),
     )
   }
 
+  /** 选中指定模板 */
   function selectTemplate(id: string) {
     activeTemplateId.value = id
   }
 
+  // ===== 自定义模板 CRUD =====
+  /** 添加自定义模板——生成唯一 ID，标记为非内置 */
   function addCustomTemplate(tpl: Omit<PromptTemplate, 'id' | 'builtIn'>): PromptTemplate {
     const template: PromptTemplate = {
       ...tpl,
@@ -261,6 +257,7 @@ export const useTemplateStore = defineStore('templates', () => {
     return template
   }
 
+  /** 删除自定义模板 */
   function removeCustomTemplate(id: string) {
     const idx = customTemplates.value.findIndex((t) => t.id === id)
     if (idx !== -1) {
@@ -269,6 +266,7 @@ export const useTemplateStore = defineStore('templates', () => {
     }
   }
 
+  /** 更新自定义模板的指定字段 */
   function updateCustomTemplate(id: string, data: Partial<PromptTemplate>) {
     const tpl = customTemplates.value.find((t) => t.id === id)
     if (tpl) {
@@ -277,6 +275,7 @@ export const useTemplateStore = defineStore('templates', () => {
     }
   }
 
+  /** 从 JSON 字符串导入模板——返回成功导入的数量 */
   function importTemplates(json: string): number {
     try {
       const items = JSON.parse(json)
@@ -302,24 +301,33 @@ export const useTemplateStore = defineStore('templates', () => {
     }
   }
 
+  /** 导出所有自定义模板为 JSON 字符串 */
   function exportTemplates(): string {
     return JSON.stringify(customTemplates.value, null, 2)
   }
 
+  // ===== 持久化 =====
+  /** 将自定义模板列表写入 localStorage */
   function persist() {
     saveCustomTemplates(customTemplates.value)
   }
 
+  // ===== 导出 =====
   return {
+    // 状态
     customTemplates,
+    activeTemplateId,
+    // 计算属性
     allTemplates,
     activeTemplate,
-    activeTemplateId,
+    // 查询
     getTemplatesByAction,
     selectTemplate,
+    // 自定义模板 CRUD
     addCustomTemplate,
     removeCustomTemplate,
     updateCustomTemplate,
+    // 导入导出
     importTemplates,
     exportTemplates,
   }

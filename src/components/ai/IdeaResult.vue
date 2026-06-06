@@ -1,3 +1,4 @@
+<!-- AI 脑暴结果展示——解析 Markdown 情节创意列表，支持重新生成和复制全部内容 -->
 <template>
   <div class="action-panel">
     <div class="action-info">

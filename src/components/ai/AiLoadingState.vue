@@ -1,3 +1,4 @@
+<!-- AI 操作加载状态动画——三点脉动效果，显示当前 action 类型文本，全局禁用其他 AI 按钮 -->
 <template>
   <div class="ai-loading">
     <div class="loading-header">

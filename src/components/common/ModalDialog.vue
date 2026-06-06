@@ -1,3 +1,4 @@
+<!-- 通用模态对话框——支持 prompt（文本输入）、confirm（确认/取消）、alert（仅确认）三种模式 -->
 <template>
   <Teleport to="body">
     <div v-if="visible" class="modal-overlay" @click.self="onCancel">

@@ -1,3 +1,4 @@
+<!-- LLM 提供商信息卡片——展示提供商名称/模型列表，显示 Key 配置状态（灰点=未配/绿点=已配），点击展开设置 -->
 <template>
   <button
     class="provider-card"
@@ -70,7 +71,7 @@ defineEmits<{ select: [] }>()
   flex-shrink: 0;
 }
 .status-dot.green { background: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
-.status-dot.gray { background: #9ca3af; }
+.status-dot.gray { background: var(--color-text-muted); }
 
 .provider-key {
   margin-top: 6px;

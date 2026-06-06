@@ -319,7 +319,7 @@ async function onGenOutline(item: OutlineItem) {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  background: linear-gradient(135deg, var(--color-accent-hover), var(--color-accent));
   color: var(--color-text-on-accent);
   flex-shrink: 0;
   box-shadow: 0 3px 10px rgba(99,102,241,0.3);
@@ -642,7 +642,7 @@ async function onGenOutline(item: OutlineItem) {
   gap: 6px;
 }
 .btn-add {
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  background: linear-gradient(135deg, var(--color-accent-hover), var(--color-accent));
   color: var(--color-text-on-accent);
   box-shadow: 0 2px 10px rgba(99,102,241,0.3);
 }

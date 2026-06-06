@@ -411,7 +411,7 @@ watch(() => editorStore.activeAction, (action) => {
   width: 100%;
   padding: 10px 16px;
   border: none;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: linear-gradient(135deg, var(--color-warning), var(--color-warning-hover));
   color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -468,7 +468,7 @@ watch(() => editorStore.activeAction, (action) => {
 }
 
 .gen-loading-icon { font-size: 1.8rem; animation: pulse 1.2s ease-in-out infinite; }
-.gen-loading-label { font-size: 0.78rem; color: #d97706; font-weight: 600; }
+.gen-loading-label { font-size: 0.78rem; color: var(--color-warning); font-weight: 600; }
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 0.7; }

@@ -334,7 +334,7 @@ async function onRegenerate() {
   width: 100%;
   padding: 10px 16px;
   border: none;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  background: linear-gradient(135deg, var(--color-accent-hover), var(--color-accent));
   color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -383,7 +383,7 @@ async function onRegenerate() {
   gap: 10px;
 }
 .gen-loading-icon { font-size: 1.8rem; animation: pulse 1.2s ease-in-out infinite; }
-.gen-loading-label { font-size: 0.78rem; color: #6366f1; font-weight: 600; }
+.gen-loading-label { font-size: 0.78rem; color: var(--color-accent); font-weight: 600; }
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 0.7; }

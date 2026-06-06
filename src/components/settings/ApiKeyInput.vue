@@ -1,3 +1,4 @@
+<!-- API Key 输入组件——支持显示/隐藏切换，已保存时显示掩码（sk-****xxxx），含连通性检测按钮 -->
 <template>
   <div class="apikey-input">
     <div class="input-row">
@@ -120,7 +121,7 @@ function onDelete() {
   flex-shrink: 0;
 }
 .status-dot.green { background: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
-.status-dot.gray { background: #9ca3af; }
+.status-dot.gray { background: var(--color-text-muted); }
 
 .btn-delete {
   margin-left: 4px;

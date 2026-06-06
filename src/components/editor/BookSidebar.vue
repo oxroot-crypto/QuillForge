@@ -824,14 +824,14 @@ async function onExport() {
 
 .goal-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-accent), #6366f1);
+  background: var(--color-accent);
   border-radius: 3px;
   transition: width 0.4s ease;
   min-width: 0;
 }
 
 .goal-progress-bar.goal-exceeded {
-  background: linear-gradient(90deg, #10b981, #059669);
+  background: var(--color-success);
 }
 
 .goal-stats-row {
@@ -849,7 +849,7 @@ async function onExport() {
 
 .goal-streak {
   font-size: 0.62rem;
-  color: #f59e0b;
+  color: var(--color-warning);
   font-weight: 600;
   white-space: nowrap;
 }

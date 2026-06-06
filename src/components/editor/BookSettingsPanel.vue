@@ -1,3 +1,4 @@
+<!-- 书籍设定编辑面板——世界观设定和剧情设定两个 Markdown 编辑区，支持 AI 一键生成 -->
 <template>
   <div class="settings-panel">
     <!-- World Setting -->
