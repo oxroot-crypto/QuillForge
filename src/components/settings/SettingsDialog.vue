@@ -177,6 +177,7 @@ import { checkProviderConnection } from '@/commands/ai'
 import ProviderCard from './ProviderCard.vue'
 import ApiKeyInput from './ApiKeyInput.vue'
 import ModalDialog from '@/components/common/ModalDialog.vue'
+import type { ModalAction } from '@/types'
 
 defineProps<{ visible: boolean }>()
 defineEmits<{ close: [] }>()
@@ -189,7 +190,6 @@ const isFreeModelInput = computed(() =>
 )
 
 // ── Modal ──
-interface ModalAction { resolve: (value: string | boolean) => void }
 const modal = reactive<{
   visible: boolean
   type: 'prompt' | 'confirm' | 'alert'

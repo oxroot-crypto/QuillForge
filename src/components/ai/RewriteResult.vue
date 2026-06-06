@@ -278,11 +278,11 @@ async function onRegenerate() {
   gap: 8px;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
   font-size: 0.78rem;
   font-weight: 500;
-  border: 1px solid #fbbf24;
+  border: 1px solid var(--color-warning-border);
 }
 
 .gen-input {
@@ -335,7 +335,7 @@ async function onRegenerate() {
   padding: 10px 16px;
   border: none;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.88rem;
@@ -406,19 +406,19 @@ async function onRegenerate() {
   gap: 8px;
   margin-bottom: 10px;
   padding: 8px 12px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
   border-radius: var(--radius-sm);
   font-size: 0.82rem;
   font-weight: 600;
-  color: #065f46;
+  color: var(--color-success);
 }
 
 .applied-words {
   margin-left: auto;
   font-size: 0.7rem;
   font-weight: 500;
-  color: #047857;
+  color: var(--color-success);
   white-space: nowrap;
 }
 

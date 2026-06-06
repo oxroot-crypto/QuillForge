@@ -1,3 +1,4 @@
+// 快照命令封装——内存快照操作，直接读写 bookStore（非 Rust 文件存储），经书籍持久化自动保存。
 import { useBookStore } from '@/stores/book'
 import type { Snapshot } from '@/types'
 import { countWords } from '@/utils/content'

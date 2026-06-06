@@ -167,7 +167,7 @@ function onCancel() {
 
 .modal-btn-ok {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   box-shadow: 0 2px 6px var(--color-accent-light);
 }
 .modal-btn-ok:hover {

@@ -1,5 +1,10 @@
+//! 书籍持久化命令——多书、多章以目录结构存储到 app_data_dir。
+//! 每本书一个子目录：meta.json (书籍元信息+章节索引) + chapters/ (每章一个 JSON)。
+//! 保存时先写到临时目录再原子 rename，防中途崩溃损坏数据。
+
 use tauri::Manager;
 
+/// 保存全部书籍数据——前端传 JSON 数组，Rust 端拆分为目录结构后原子写入。
 #[tauri::command]
 pub fn save_all_books(app_handle: tauri::AppHandle, data: String) -> Result<(), String> {
     let base = app_handle.path().app_data_dir().map_err(|e| format!("App data dir: {e}"))?;
@@ -64,6 +69,8 @@ pub fn save_all_books(app_handle: tauri::AppHandle, data: String) -> Result<(), 
     Ok(())
 }
 
+/// 加载全部书籍数据——从目录结构重组为 JSON 数组返回前端。
+/// 自动迁移旧版单文件 books.json 到新目录结构。
 #[tauri::command]
 pub fn load_all_books(app_handle: tauri::AppHandle) -> Result<String, String> {
     let base = app_handle.path().app_data_dir().map_err(|e| format!("App data dir: {e}"))?;
@@ -134,6 +141,7 @@ pub fn load_all_books(app_handle: tauri::AppHandle) -> Result<String, String> {
     serde_json::to_string(&books).map_err(|e| format!("Serialize: {e}"))
 }
 
+/// 删除指定书籍的完整目录——包含 meta.json、所有章节文件和快照历史。
 #[tauri::command]
 pub fn delete_book_dir(app_handle: tauri::AppHandle, book_id: String) -> Result<(), String> {
     let base = app_handle.path().app_data_dir().map_err(|e| format!("App data dir: {e}"))?;
@@ -144,6 +152,8 @@ pub fn delete_book_dir(app_handle: tauri::AppHandle, book_id: String) -> Result<
     Ok(())
 }
 
+/// 导出书籍为 Markdown 文件——去除 HTML 标签，输出到用户文档目录的 QuillForge/ 下。
+/// 返回导出文件路径供前端提示。
 #[tauri::command]
 pub fn export_book_markdown(
     app_handle: tauri::AppHandle,

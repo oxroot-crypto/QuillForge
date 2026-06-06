@@ -240,7 +240,7 @@ onMounted(loadSnapshots)
   padding: 4px 10px;
   border: 1px solid var(--color-accent);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.72rem;
@@ -391,7 +391,7 @@ onMounted(loadSnapshots)
   padding: 4px 12px;
   border: 1px solid var(--color-accent);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.75rem;

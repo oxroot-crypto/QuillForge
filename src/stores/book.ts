@@ -1,3 +1,5 @@
+// 书籍/章节/角色 Pinia Store——管理核心数据的 CRUD、自动保存（800ms 防抖）、
+// 章节状态切换、写作目标追踪与每日统计（localStorage 持久化）、全文搜索索引同步。
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { Book, Chapter, ChapterStatus, Character, OutlineItem, DailyStats } from '@/types'

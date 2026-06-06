@@ -1,11 +1,14 @@
+// TipTap SpellCheck 扩展——对编辑器内容进行英文拼写检查，红色波浪线标注错误词。
+// 后端通过内嵌词库 + Levenshtein 编辑距离提供纠错建议，前端 600ms 防抖触发。
 import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey } from 'prosemirror-state'
-import { Decoration, DecorationSet } from 'prosemirror-view'
+import { Plugin, PluginKey, type EditorState } from 'prosemirror-state'
+import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view'
+import type { Node } from 'prosemirror-model'
 import { spellCheckText } from '@/commands/spell'
 import type { SpellError } from '@/commands/spell'
 
 const pluginKey = new PluginKey('spellCheck')
-let editorView: any = null
+let editorView: EditorView | null = null
 
 /**
  * TipTap extension that underlines misspelled words with a red wavy line.
@@ -68,7 +71,7 @@ export const SpellCheck = Extension.create({
       }),
     ]
 
-    async function runSpellCheck(state: any) {
+    async function runSpellCheck(state: EditorState) {
       try {
         const text = state.doc.textContent
         if (!text.trim()) {
@@ -83,7 +86,7 @@ export const SpellCheck = Extension.create({
       }
     }
 
-    function buildDecorations(doc: any, errors: SpellError[]): DecorationSet {
+    function buildDecorations(doc: Node, errors: SpellError[]): DecorationSet {
       const decos = errors.map((err) => {
         const from = findTextPos(doc, err.start)
         const to = findTextPos(doc, err.end)
@@ -96,7 +99,7 @@ export const SpellCheck = Extension.create({
       return DecorationSet.create(doc, decos)
     }
 
-    function applyDecorations(state: any, decos: DecorationSet) {
+    function applyDecorations(state: EditorState, decos: DecorationSet) {
       if (!editorView) return
       const tr = state.tr
       tr.setMeta(pluginKey, decos)
@@ -105,13 +108,13 @@ export const SpellCheck = Extension.create({
   },
 })
 
-function findTextPos(doc: any, charOffset: number): number {
+function findTextPos(doc: Node, charOffset: number): number {
   let pos = 0
   let result = -1
-  doc.descendants((node: any, nodePos: number) => {
+  doc.descendants((node: Node, nodePos: number) => {
     if (result !== -1) return false
     if (node.isText) {
-      const len = node.text.length
+      const len = node.text?.length ?? 0
       if (pos <= charOffset && charOffset <= pos + len) {
         result = nodePos + (charOffset - pos)
         return false

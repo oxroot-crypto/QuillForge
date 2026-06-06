@@ -1,6 +1,9 @@
+// 提示词模板 Store——内置 + 自定义模板的 CRUD、按功能/标签筛选、JSON 导入/导出。
+// 自定义模板持久化到 localStorage，内置模板硬编码只读。
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+/** 提示词模板——关联特定 AI action，提供 system/user 提示词覆盖 */
 export interface PromptTemplate {
   id: string
   name: string
@@ -127,10 +130,30 @@ const BUILT_IN_TEMPLATES: PromptTemplate[] = [
   {
     id: 'builtin-review-en',
     name: 'General Review',
-    description: 'Review grammar, pacing, characterization, and plot logic',
+    description: 'Comprehensive review of grammar, pacing, characterization, and plot logic',
     action: 'review',
     systemPrompt: '',
     tags: ['review', 'general'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
+    id: 'builtin-idea-en',
+    name: 'Plot Brainstorming',
+    description: 'Generate creative plot directions based on current story nodes',
+    action: 'idea',
+    systemPrompt: '',
+    tags: ['brainstorm', 'creative'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
+    id: 'builtin-continue-en',
+    name: 'Natural Continuation',
+    description: 'Continue writing while maintaining consistent style and tone',
+    action: 'continue',
+    systemPrompt: '',
+    tags: ['continue', 'smooth'],
     locale: 'en-US',
     builtIn: true,
   },
@@ -145,12 +168,62 @@ const BUILT_IN_TEMPLATES: PromptTemplate[] = [
     builtIn: true,
   },
   {
+    id: 'builtin-rewrite-classical-en',
+    name: 'Classical Prose Style',
+    description: 'Rewrite in a classical literary style with elegant vocabulary',
+    action: 'rewrite',
+    systemPrompt: 'Rewrite in a classical literary style. Use elegant vocabulary and rhythmic sentence structures. Maintain the original meaning while elevating the prose.',
+    tags: ['rewrite', 'classical'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
+    id: 'builtin-rewrite-suspense-en',
+    name: 'Suspense & Tension',
+    description: 'Heighten suspense and tension with pacing and atmospheric details',
+    action: 'rewrite',
+    systemPrompt: 'Heighten suspense and tension. Use shorter sentences to build urgency, add environmental details that hint at danger, and carefully control the release of information.',
+    tags: ['rewrite', 'suspense'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
+    id: 'builtin-rewrite-dialogue-en',
+    name: 'Dialogue Polish',
+    description: 'Make dialogue more natural and character-appropriate',
+    action: 'rewrite',
+    systemPrompt: 'Polish the dialogue to sound more natural and character-appropriate. Each line of dialogue should reflect the speaker\'s personality, background, and current emotional state.',
+    tags: ['rewrite', 'dialogue'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
+    id: 'builtin-rewrite-compress-en',
+    name: 'Tighten Pacing',
+    description: 'Compress verbose passages to accelerate narrative pace',
+    action: 'rewrite',
+    systemPrompt: 'Compress redundant descriptions and repetitive narration to accelerate the pace. Preserve core plot points and key details while removing unnecessary embellishment.',
+    tags: ['rewrite', 'pacing'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
     id: 'builtin-atmosphere-en',
     name: 'Atmosphere Enhancement',
     description: 'Enhance scene atmosphere with richer sensory details',
     action: 'rewrite',
     systemPrompt: 'Enhance the passage with richer sensory details — sight, sound, smell, touch. Maintain the original tone and POV.',
     tags: ['rewrite', 'atmosphere'],
+    locale: 'en-US',
+    builtIn: true,
+  },
+  {
+    id: 'builtin-summary-en',
+    name: 'Chapter Summary',
+    description: 'Generate a concise plot summary of the chapter',
+    action: 'rewrite',
+    systemPrompt: 'Generate a 1-2 sentence concise summary of the chapter\'s key events. Output only the summary itself.',
+    tags: ['summary', 'chapter'],
     locale: 'en-US',
     builtIn: true,
   },
@@ -168,7 +241,8 @@ export const useTemplateStore = defineStore('templates', () => {
 
   function getTemplatesByAction(action: string, locale: string): PromptTemplate[] {
     return allTemplates.value.filter(
-      (t) => t.action === action && (t.locale === locale || t.locale === 'zh-CN'),
+      // 内置模板只显示当前语言的；自定义模板全部显示
+      (t) => t.action === action && (t.builtIn ? t.locale === locale : (t.locale === locale || t.locale === 'zh-CN')),
     )
   }
 

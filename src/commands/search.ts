@@ -1,5 +1,7 @@
+// 全文搜索命令封装——索引章节内容、删除索引、执行搜索，数据走 Rust 内存索引。
 import { invoke } from '@tauri-apps/api/core'
 
+/** 搜索结果——与 Rust 端 SearchResult 结构镜像 */
 export interface SearchResult {
   book_id: string
   book_title: string

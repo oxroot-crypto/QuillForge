@@ -4,7 +4,7 @@
       <button
         class="panel-btn sidebar-btn"
         :class="{ collapsed: sidebarCollapsed }"
-        :title="'侧边栏 (Ctrl+Shift+B)'"
+        :title="t('editor.toggleSidebar')"
         @click="$emit('toggleSidebar')"
       >
         <span class="hamburger">
@@ -33,7 +33,7 @@
       <button
         class="panel-btn ai-panel-btn"
         :class="{ collapsed: aiPanelCollapsed }"
-        :title="'AI面板 (Ctrl+Shift+P)'"
+        :title="$t('editor.toggleAiPanel')"
         @click="$emit('toggleAiPanel')"
       >
         <span class="ai-indicator"></span>
@@ -78,7 +78,7 @@ defineEmits<{
   toggleAiPanel: []
 }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const themeStore = useThemeStore()
 const i18nStore = useI18nStore()
 const settingsStore = useSettingsStore()
@@ -134,7 +134,7 @@ function onLangChange(e: Event) {
 
 .toolbar-btn.active {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-color: var(--color-accent);
   box-shadow: 0 2px 8px var(--color-accent-light);
 }

@@ -1,3 +1,4 @@
+// 主题 Store——亮/暗模式切换，应用 CSS 变量 data-theme 属性，跟随系统偏好。
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 

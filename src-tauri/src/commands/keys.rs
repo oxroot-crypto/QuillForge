@@ -1,9 +1,13 @@
+//! API Key 管理命令——加密存储、掩码查询、删除。
+//! Key 经 AES-256-GCM 加密后存入 tauri-plugin-store，前端只能获取掩码状态。
+
 use crate::crypto;
 use crate::AppState;
 use super::helpers::get_api_key_internal;
 use tauri::State;
 use tauri_plugin_store::StoreExt;
 
+/// 保存 API Key——AES-256-GCM 加密后持久化到 quillforge-secrets.json
 #[tauri::command]
 pub fn save_api_key(
     state: State<'_, AppState>,
@@ -27,6 +31,7 @@ pub fn save_api_key(
     Ok(())
 }
 
+/// 获取掩码 API Key——仅返回 sk-****xxxx 格式的掩码，不暴露完整 Key
 #[tauri::command]
 pub fn get_api_key_masked(
     state: State<'_, AppState>,
@@ -40,6 +45,7 @@ pub fn get_api_key_masked(
     }
 }
 
+/// 检测是否已配置指定提供商的 API Key
 #[tauri::command]
 pub fn has_api_key(
     state: State<'_, AppState>,
@@ -50,6 +56,7 @@ pub fn has_api_key(
     Ok(api_key.is_some())
 }
 
+/// 删除指定提供商的 API Key
 #[tauri::command]
 pub fn delete_api_key(
     _state: State<'_, AppState>,

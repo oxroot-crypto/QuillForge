@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
   max-width: 600px;
   padding: 10px 20px;
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   font-size: 0.84rem;
   font-weight: 500;

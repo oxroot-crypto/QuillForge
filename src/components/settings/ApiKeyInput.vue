@@ -87,7 +87,7 @@ function onDelete() {
   padding: 8px 18px;
   border: none;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.84rem;

@@ -211,7 +211,7 @@ async function doGenerate(field: string) {
   letter-spacing: 0.5px;
   transition: all var(--transition-fast);
 }
-.btn-ai:hover:not(:disabled) { background: var(--color-accent); color: #fff; }
+.btn-ai:hover:not(:disabled) { background: var(--color-accent); color: var(--color-text-on-accent); }
 .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .gen-row {
@@ -235,7 +235,7 @@ async function doGenerate(field: string) {
   padding: 4px 10px;
   border: none;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.74rem;

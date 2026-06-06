@@ -320,7 +320,7 @@ async function onGenOutline(item: OutlineItem) {
   height: 34px;
   border-radius: 10px;
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  color: #fff;
+  color: var(--color-text-on-accent);
   flex-shrink: 0;
   box-shadow: 0 3px 10px rgba(99,102,241,0.3);
 }
@@ -532,7 +532,7 @@ async function onGenOutline(item: OutlineItem) {
   transition: all 0.15s ease;
   white-space: nowrap;
 }
-.btn-ai:hover:not(:disabled) { background: var(--color-accent); color: #fff; }
+.btn-ai:hover:not(:disabled) { background: var(--color-accent); color: var(--color-text-on-accent); }
 .btn-ai:disabled { opacity: 0.5; cursor: default; }
 
 .mini-spinner {
@@ -564,8 +564,8 @@ async function onGenOutline(item: OutlineItem) {
   transition: all 0.15s ease;
 }
 .btn-sm:hover { border-color: var(--color-text-muted); color: var(--color-text); }
-.btn-primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-.btn-primary:hover { background: var(--color-accent); color: #fff; opacity: 0.9; }
+.btn-primary { background: var(--color-accent); color: var(--color-text-on-accent); border-color: var(--color-accent); }
+.btn-primary:hover { background: var(--color-accent); color: var(--color-text-on-accent); opacity: 0.9; }
 
 /* ── Chapter Link ── */
 .item-chapter-link {
@@ -595,8 +595,8 @@ async function onGenOutline(item: OutlineItem) {
   border-radius: 4px;
   font-size: 0.6rem;
   font-weight: 600;
-  background: #10b981;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-on-accent);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -643,7 +643,7 @@ async function onGenOutline(item: OutlineItem) {
 }
 .btn-add {
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  color: #fff;
+  color: var(--color-text-on-accent);
   box-shadow: 0 2px 10px rgba(99,102,241,0.3);
 }
 .btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,0.4); }

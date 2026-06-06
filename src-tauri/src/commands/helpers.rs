@@ -1,8 +1,12 @@
+//! 内部辅助函数——供 commands 模块内复用的工具函数。
+
 use crate::crypto;
 use crate::AppState;
 use tauri::State;
 use tauri_plugin_store::StoreExt;
 
+/// 从加密存储中读取并解密 API Key。
+/// 返回 `None` 表示该提供商未配置 Key，`Some(plaintext)` 为解密后的明文。
 pub fn get_api_key_internal(
     state: &State<'_, AppState>,
     provider: &str,

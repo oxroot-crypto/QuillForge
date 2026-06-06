@@ -1,9 +1,13 @@
+//! AI 命令模块——LLM 消息构造、系统提示词路由、书籍信息生成。
+//! 系统提示词按 action 类型硬编码在此，用户不可覆盖；模板提示词作为【额外要求】拼接。
+
 use crate::llm::provider::{self, AiRequest, Message, ModelConfig, ProviderInfo};
 use crate::AppState;
 use super::helpers::get_api_key_internal;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+/// AI 生成的书籍角色——JSON 反序列化目标，字段名与 AI 输出保持一致
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedCharacter {
     pub name: String,
@@ -11,6 +15,7 @@ pub struct GeneratedCharacter {
     pub description: String,
 }
 
+/// AI 生成的完整书籍信息——CreateBookDialog 解析后预览编辑再创建
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedBookInfo {
     pub title: String,
@@ -21,6 +26,8 @@ pub struct GeneratedBookInfo {
     pub characters: Vec<GeneratedCharacter>,
 }
 
+/// 核心 AI 消息命令——前端所有 AI 操作（审阅/续写/脑暴/改写/一致性/生成章节）均走此入口。
+/// 从加密存储读取 API Key，构造 system + user 消息列表，调用对应 LLM 提供商，返回原始文本。
 #[tauri::command]
 pub async fn send_ai_message(
     state: State<'_, AppState>,
@@ -50,6 +57,7 @@ pub async fn send_ai_message(
     .await
 }
 
+/// 检测 LLM 提供商连通性——发送简单测试消息验证 Key 和网络是否正常。
 #[tauri::command]
 pub async fn check_provider_connection(
     state: State<'_, AppState>,
@@ -77,11 +85,14 @@ pub async fn check_provider_connection(
     Ok(format!("OK — {model}: {result}", model = config.model))
 }
 
+/// 返回所有支持的 LLM 提供商列表及模型信息，供前端设置面板展示。
 #[tauri::command]
 pub fn get_supported_providers() -> Vec<ProviderInfo> {
     provider::get_providers()
 }
 
+/// AI 一键生成书籍信息——根据用户描述返回书名、简介、世界观、角色列表（JSON 格式）。
+/// char_count 控制生成角色数量，默认 15，钳制在 1-50 之间。
 #[tauri::command]
 pub async fn generate_book_info(
     state: State<'_, AppState>,

@@ -1,5 +1,7 @@
+// API Key 命令封装——保存/获取掩码/检测是否存在/删除，Key 经 Rust AES-256-GCM 加密。
 import { invoke } from '@tauri-apps/api/core'
 
+/** 加密保存指定提供商的 API Key 到 quillforge-secrets.json */
 export async function saveApiKey(
   provider: string,
   apiKey: string,

@@ -1,11 +1,13 @@
+// TipTap GhostText 扩展——AI 续写的半透明提示文本。
+// 在光标处显示灰色"幽灵文字"，Tab 键接受插入，Esc 或任意输入键取消。
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from 'prosemirror-state'
-import { Decoration, DecorationSet } from 'prosemirror-view'
+import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view'
 
 const ghostKey = new PluginKey('ghostText')
 
 let _ghost: { text: string; from: number } | null = null
-let _editorView: any = null
+let _editorView: EditorView | null = null
 
 function setGhostRaw(text: string | null) {
   if (!_editorView) return
@@ -59,7 +61,8 @@ export function replaceSelection(text: string) {
   _editorView.dispatch(tr)
 }
 
-export function setEditorView(editor: any) {
+/** 设置编辑器视图引用——组件 mount 时调用，用于后续 GhostText 操作 */
+export function setEditorView(editor: { view: EditorView }) {
   _editorView = editor.view
 }
 

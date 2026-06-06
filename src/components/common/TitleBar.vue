@@ -6,16 +6,16 @@
     </div>
 
     <div v-if="winRef" class="titlebar-controls">
-      <button class="ctrl-btn ctrl-min" title="最小化" @click="winRef.minimize()">
+      <button class="ctrl-btn ctrl-min" :title="t('common.minimize')" @click="winRef.minimize()">
         <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="1.5" fill="currentColor"/></svg>
       </button>
-      <button v-if="!isMaximized" class="ctrl-btn ctrl-max" title="最大化" @click="winRef.toggleMaximize()">
+      <button v-if="!isMaximized" class="ctrl-btn ctrl-max" :title="t('common.maximize')" @click="winRef.toggleMaximize()">
         <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
-      <button v-else class="ctrl-btn ctrl-max" title="还原" @click="winRef.toggleMaximize()">
+      <button v-else class="ctrl-btn ctrl-max" :title="t('common.restore')" @click="winRef.toggleMaximize()">
         <svg width="12" height="12" viewBox="0 0 12 12"><rect x="3" y="1" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="3" width="8" height="8" fill="var(--color-surface)" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
-      <button class="ctrl-btn ctrl-close" title="关闭" @click="winRef.close()">
+      <button class="ctrl-btn ctrl-close" :title="t('common.close')" @click="winRef.close()">
         <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5"/></svg>
       </button>
     </div>
@@ -24,6 +24,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const winRef = ref<{
   minimize: () => Promise<void>
@@ -106,6 +109,6 @@ onMounted(async () => {
 }
 .ctrl-close:hover {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 </style>

@@ -1,11 +1,20 @@
+//! LLM 提供商路由模块——根据 provider 标识将请求分发到对应的 API 实现。
+//! 前端通过 Tauri invoke 调用，Rust 层负责 Key 注入和 HTTP 代理，Key 不暴露给前端。
+
+use super::anthropic;
+use super::ollama;
+use super::openai;
+use super::openai_compat;
 use serde::{Deserialize, Serialize};
 
+/// LLM 对话消息——与前端 `Message` 类型镜像，字段均使用 snake_case 序列化
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub role: String,
     pub content: String,
 }
 
+/// 模型配置——从前端传入，包含提供商、模型名、API 地址、温度、最大 token 数等
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
     pub provider: String,
@@ -16,6 +25,7 @@ pub struct ModelConfig {
     pub system_prompt: String,
 }
 
+/// 提供商元信息——用于前端设置面板展示可用模型列表和配置要求
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderInfo {
     pub id: String,
@@ -25,6 +35,7 @@ pub struct ProviderInfo {
     pub requires_api_key: bool,
 }
 
+/// AI 请求体——前端发起 AI 操作时传入，action 为操作类型路由键
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequest {
     pub action: String,
@@ -32,6 +43,8 @@ pub struct AiRequest {
     pub context: Option<String>,
 }
 
+/// 根据 provider 标识路由到对应的 LLM API 实现。
+/// `api_key` 为 None 时表示该提供商不需要 Key（如本地 Ollama）。
 pub async fn send_to_provider(
     provider: &str,
     model: &str,
@@ -98,8 +111,3 @@ pub fn get_providers() -> Vec<ProviderInfo> {
         },
     ]
 }
-
-use super::anthropic;
-use super::ollama;
-use super::openai;
-use super::openai_compat;

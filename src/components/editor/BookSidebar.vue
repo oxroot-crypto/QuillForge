@@ -226,7 +226,7 @@ import { useBookStore } from '@/stores/book'
 import { useEditorStore } from '@/stores/editor'
 import { exportBookMarkdown } from '@/commands/storage'
 import { countWords } from '@/utils/content'
-import type { Book, Chapter, ChapterStatus } from '@/types'
+import type { Book, Chapter, ChapterStatus, ModalAction } from '@/types'
 import ModalDialog from '@/components/common/ModalDialog.vue'
 import CreateBookDialog from '@/components/common/CreateBookDialog.vue'
 import OutlineDialog from '@/components/common/OutlineDialog.vue'
@@ -264,10 +264,10 @@ const filteredChapters = computed(() => {
 })
 
 const statusColors: Record<ChapterStatus, string> = {
-  draft: '#6b7280',
-  revising: '#f59e0b',
-  completed: '#10b981',
-  frozen: '#3b82f6',
+  draft: 'var(--color-status-draft)',
+  revising: 'var(--color-status-revising)',
+  completed: 'var(--color-status-completed)',
+  frozen: 'var(--color-status-frozen)',
 }
 
 function statusLabel(status: ChapterStatus): string {
@@ -314,7 +314,6 @@ async function onSetGoal() {
 
 // — Modal state —
 type ModalType = 'prompt' | 'confirm' | 'alert'
-interface ModalAction { resolve: (value: string | boolean) => void }
 const modal = reactive<{
   visible: boolean
   type: ModalType
@@ -542,7 +541,7 @@ async function onExport() {
   height: 26px;
   border: none;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 1rem;
@@ -661,7 +660,7 @@ async function onExport() {
 .info-btn:hover { border-color: var(--color-accent); color: var(--color-text); }
 .info-btn.active {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-color: var(--color-accent);
   box-shadow: 0 2px 8px var(--color-accent-light);
 }
@@ -726,16 +725,16 @@ async function onExport() {
   transform: scale(1.5);
 }
 .status-dot.status-draft {
-  background: #6b7280;
+  background: var(--color-status-draft);
 }
 .status-dot.status-revising {
-  background: #f59e0b;
+  background: var(--color-status-revising);
 }
 .status-dot.status-completed {
-  background: #10b981;
+  background: var(--color-status-completed);
 }
 .status-dot.status-frozen {
-  background: #3b82f6;
+  background: var(--color-status-frozen);
 }
 
 .chapter-title {
@@ -766,7 +765,7 @@ async function onExport() {
   transition: all var(--transition-fast);
 }
 .chapter-item:hover .btn-delete { opacity: 1; }
-.btn-delete:hover { color: #fff; background: var(--color-danger); }
+.btn-delete:hover { color: var(--color-text-on-accent); background: var(--color-danger); }
 
 .sidebar-empty {
   text-align: center;

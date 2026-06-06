@@ -1,3 +1,4 @@
+// 国际化 Store——语言偏好持久化到 localStorage，切换时同步 vue-i18n locale。
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'

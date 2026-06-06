@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   border: none;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.88rem;
@@ -382,7 +382,7 @@ onBeforeUnmount(() => {
 
 .btn-apply:hover:not(:disabled) {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 
 .btn-apply:disabled {
@@ -405,19 +405,19 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
   border-radius: var(--radius-sm);
   font-size: 0.82rem;
   font-weight: 600;
-  color: #065f46;
+  color: var(--color-success);
 }
 
 .applied-words {
   margin-left: auto;
   font-size: 0.7rem;
   font-weight: 500;
-  color: #047857;
+  color: var(--color-success);
   white-space: nowrap;
 }
 </style>

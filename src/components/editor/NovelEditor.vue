@@ -419,8 +419,8 @@ onBeforeUnmount(() => {
 
 .header-btn-focus.active {
   background: #f59e0b;
-  color: #fff;
-  border-color: #f59e0b;
+  color: var(--color-text-on-accent);
+  border-color: var(--color-warning);
 }
 
 .word-count {

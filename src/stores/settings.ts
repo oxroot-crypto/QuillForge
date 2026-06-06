@@ -1,3 +1,5 @@
+// LLM 设置 Store——提供商选择、模型参数、API Key 状态、预设管理（多配置切换）。
+// 预设持久化到 localStorage，Key 操作经 Rust 加密存储。
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { ModelConfig, ModelPreset, ProviderInfo } from '@/types'

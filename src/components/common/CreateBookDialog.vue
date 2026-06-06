@@ -429,7 +429,7 @@ onMounted(() => {
   height: 34px;
   border-radius: 10px;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent));
-  color: #fff;
+  color: var(--color-text-on-accent);
   flex-shrink: 0;
   box-shadow: 0 3px 10px var(--color-accent-light);
 }
@@ -710,7 +710,7 @@ onMounted(() => {
   padding: 11px 18px;
   border: none;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent));
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: 10px;
   font-size: 0.88rem;
   font-weight: 620;
@@ -774,8 +774,8 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: #10b981;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-text-on-accent);
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
@@ -925,7 +925,7 @@ onMounted(() => {
   justify-content: center;
   font-size: 0.85rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text-on-accent);
   flex-shrink: 0;
 }
 
@@ -992,7 +992,7 @@ onMounted(() => {
 
 .btn-confirm {
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent));
-  color: #fff;
+  color: var(--color-text-on-accent);
   box-shadow: 0 2px 10px var(--color-accent-light);
   position: relative;
   overflow: hidden;
@@ -1042,7 +1042,7 @@ onMounted(() => {
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
+  border-top-color: var(--color-text-on-accent);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   flex-shrink: 0;

@@ -65,17 +65,11 @@ import { useBookStore } from '@/stores/book'
 import { sendAiMessage } from '@/commands/ai'
 import LoadingDots from '@/components/common/LoadingDots.vue'
 import { focusEditor } from '@/extensions/ghost-text'
+import type { ConsistencyIssue } from '@/types'
 
 const editorStore = useEditorStore()
 const settingsStore = useSettingsStore()
 const bookStore = useBookStore()
-
-interface ConsistencyIssue {
-  character: string
-  type: string
-  severity: string
-  desc: string
-}
 
 const isConsistent = computed(() => {
   return editorStore.activeResult.includes('未发现不一致')
@@ -174,7 +168,7 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   border: none;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.88rem;
@@ -279,7 +273,7 @@ onBeforeUnmount(() => {
 }
 
 .issue-item.severity-高 { background: var(--color-danger-bg); border-color: var(--color-danger); }
-.issue-item.severity-中 { border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+.issue-item.severity-中 { border-color: var(--color-warning); background: rgba(245, 158, 11, 0.08); }
 .issue-item.severity-低 { border-color: var(--color-text-muted); background: var(--color-hover); }
 
 .issue-header {

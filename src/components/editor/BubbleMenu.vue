@@ -134,6 +134,6 @@ function toggleHeading() {
 
 .bubble-btn.active {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
 }
 </style>

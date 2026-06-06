@@ -197,7 +197,7 @@ onBeforeUnmount(() => {
   padding: 10px 16px;
   border: none;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.88rem;

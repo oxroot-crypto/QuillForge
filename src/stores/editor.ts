@@ -1,3 +1,5 @@
+// 编辑器状态 Store——文档内容、选区文本、AI 操作加载/取消/结果、action handler 注册。
+// 光标位置实时追踪供续写功能使用，wordCount 为计算属性。
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AiAction } from '@/types'

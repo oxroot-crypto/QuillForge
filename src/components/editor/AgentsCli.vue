@@ -12,9 +12,9 @@
         </span>
       </span>
       <div class="cli-header-actions">
-        <button class="cli-btn" title="复制全部" @click="copyAll">&#128203;</button>
-        <button class="cli-btn" title="清除" @click="clearHistory">&#128465;</button>
-        <button class="cli-btn" title="关闭" @click="$emit('close')">&#10005;</button>
+        <button class="cli-btn" :title="$t('agents.copyAll')" @click="copyAll">&#128203;</button>
+        <button class="cli-btn" :title="$t('agents.clear')" @click="clearHistory">&#128465;</button>
+        <button class="cli-btn" :title="$t('agents.close')" @click="$emit('close')">&#10005;</button>
       </div>
     </div>
 
@@ -23,16 +23,16 @@
       <!-- Welcome -->
       <div v-if="messages.length === 0" class="cli-welcome">
         <div class="welcome-logo">⚡ QuillForge Agents</div>
-        <div class="welcome-sub">{{ $t('agents.welcome') }} — 能读、能写、能改的 AI 助手</div>
+        <div class="welcome-sub">{{ $t('agents.welcome') }} — {{ $t('agents.welcomeTagline') }}</div>
         <div class="welcome-hint">
-          <span>直接说出你的需求，例如:</span>
-          <code class="hint-example">「审阅第三章，找出角色不一致的地方」</code>
-          <code class="hint-example">「帮我创建一个反派角色」</code>
-          <code class="hint-example">「润色选中的这段文字，让它更有张力」</code>
-          <code class="hint-example">「写一个200字的新章节作为过渡」</code>
+          <span>{{ $t('agents.welcomePrompt') }}</span>
+          <code class="hint-example">「{{ $t('agents.welcomeEx1') }}」</code>
+          <code class="hint-example">「{{ $t('agents.welcomeEx2') }}」</code>
+          <code class="hint-example">「{{ $t('agents.welcomeEx3') }}」</code>
+          <code class="hint-example">「{{ $t('agents.welcomeEx4') }}」</code>
         </div>
         <div class="welcome-help">
-          <span @click="showHelpCmd">输入 /help 查看所有命令</span>
+          <span @click="showHelpCmd">{{ $t('agents.welcomeHelp') }}</span>
         </div>
       </div>
 
@@ -69,7 +69,7 @@
           <div class="msg-label-ai">✦</div>
           <div class="msg-text-ai" v-html="renderMarkdown(msg.content)"></div>
           <div class="msg-actions">
-            <button class="msg-btn" title="复制" @click="copyText(msg.content)">&#128203;</button>
+            <button class="msg-btn" :title="$t('agents.copyMsg')" @click="copyText(msg.content)">&#128203;</button>
           </div>
         </template>
 
@@ -111,7 +111,7 @@
           @keydown.escape="running ? cancelAgent() : undefined"
           :disabled="running"
         ></textarea>
-        <button v-if="running" class="cli-send cli-stop" @click="cancelAgent" title="中断">&#9632;</button>
+        <button v-if="running" class="cli-send cli-stop" @click="cancelAgent" :title="$t('common.cancel')">&#9632;</button>
         <button v-else class="cli-send" :disabled="!input.trim()" @click="onSubmit">&#x2191;</button>
       </div>
     </div>
@@ -120,6 +120,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useBookStore } from '@/stores/book'
 import { useSettingsStore } from '@/stores/settings'
@@ -127,12 +128,13 @@ import { checkProviderConnection } from '@/commands/ai'
 import { saveSnapshot as saveSnapshotCmd } from '@/commands/history'
 import { runAgent } from '@/agents/engine'
 import { createTools, type ToolContext } from '@/agents/tools'
-import type { AgentMessage } from '@/agents/types'
+import type { AgentMessage, CliMessage } from '@/agents/types'
 import { countWords } from '@/utils/content'
 
 const props = defineProps<{ visible: boolean }>()
 defineEmits<{ close: [] }>()
 
+const { t } = useI18n()
 const editorStore = useEditorStore()
 const bookStore = useBookStore()
 const settingsStore = useSettingsStore()
@@ -165,13 +167,6 @@ function startResize(e: MouseEvent) {
   document.addEventListener('mouseup', onUp)
 }
 
-interface CliMessage {
-  role: 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'error'
-  content: string
-  toolCall?: { name: string; args: Record<string, any> }
-  status?: 'running' | 'done'
-}
-
 const messages = ref<CliMessage[]>([])
 const history = ref<string[]>([])
 const historyIndex = ref(-1)
@@ -179,6 +174,9 @@ const historyIndex = ref(-1)
 // ── Agent Context (bridge to Pinia stores) ──
 function buildToolContext(): ToolContext {
   return {
+    createBook: (title: string) => {
+      return bookStore.createBook(title)
+    },
     getBook: () => bookStore.activeBook,
     getChapter: () => bookStore.activeChapter,
     getChapterById: (id: string) => {
@@ -224,14 +222,9 @@ function buildToolContext(): ToolContext {
     deleteCharacter: (id) => {
       bookStore.deleteCharacter(id)
     },
-    updateWorldSetting: (text: string) => {
+    updateBookMeta: (data: Record<string, string>) => {
       if (bookStore.activeBookId) {
-        bookStore.updateBookMeta(bookStore.activeBookId, { worldSetting: text })
-      }
-    },
-    updateStorySetting: (text: string) => {
-      if (bookStore.activeBookId) {
-        bookStore.updateBookMeta(bookStore.activeBookId, { storySetting: text })
+        bookStore.updateBookMeta(bookStore.activeBookId, data as Partial<{ title: string; description: string; worldSetting: string; storySetting: string }>)
       }
     },
     saveSnapshotById: async (chapterId: string, label: string) => {
@@ -241,6 +234,32 @@ function buildToolContext(): ToolContext {
           await saveSnapshotCmd(bookStore.activeBookId, chapterId, ch.content, label, ch.title)
         }
       }
+    },
+    addOutlineItem: (chapterId: string, description: string) => {
+      if (!bookStore.activeBookId) return undefined
+      const ch = bookStore.activeBook?.chapters.find(c => c.id === chapterId)
+      const item = bookStore.addOutlineItem({ chapterId, description, title: ch?.title || '' })
+      if (item) bookStore.linkOutlineToChapter(item.id, chapterId)
+      return item?.id
+    },
+    updateOutlineItem: (outlineId: string, description: string) => {
+      if (bookStore.activeBookId) {
+        bookStore.updateOutlineItem(outlineId, { description })
+      }
+    },
+    deleteOutlineItem: (outlineId: string) => {
+      if (bookStore.activeBookId) {
+        bookStore.deleteOutlineItem(outlineId)
+      }
+    },
+    listOutlines: () => {
+      if (!bookStore.activeBook) return []
+      return bookStore.activeBook.outline.map((o) => ({
+        id: o.id,
+        title: o.title || '',
+        chapterId: o.chapterId,
+        description: o.description || '',
+      }))
     },
     listChapters: () => {
       return (bookStore.activeBookChapters || []).map((c) => ({
@@ -283,10 +302,17 @@ async function runAgentOnQuery(query: string) {
       wordCount: book?.chapters.reduce((s, c) => s + countWords(c.content), 0) || 0,
       worldSetting: book?.worldSetting || '',
       storySetting: book?.storySetting || '',
-      outline: bookStore.buildOutlineContext() || '',
+      outline: bookStore.activeBook?.outline?.length
+        ? bookStore.activeBook.outline
+            .map((o) => {
+              const ch = bookStore.activeBook?.chapters.find(c => c.id === o.chapterId)
+              return `  [${o.id}] ${ch?.title || '未关联'}：${o.description || ''}`
+            })
+            .join('\n')
+        : '',
       characters: (book?.characters || [])
-        .filter((c: any) => c.name)
-        .map((c: any) => ({ name: c.name, role: c.role, description: c.description || '' })),
+        .filter((c) => c.name)
+        .map((c) => ({ name: c.name, role: c.role, description: c.description || '' })),
     },
     settingsStore.modelConfig,
     // onMessage - final AI response
@@ -406,7 +432,7 @@ function isError(text: string): boolean {
   return text.startsWith('❌') || text.startsWith('错误：') || text.startsWith('错误:')
 }
 
-function formatArgs(args: Record<string, any>): string {
+function formatArgs(args: Record<string, string>): string {
   const entries = Object.entries(args)
   if (entries.length === 0) return ''
   return entries
@@ -429,19 +455,30 @@ function handleCommand(text: string) {
 
   switch (cmd) {
     case '/help': {
-      let help = '═ QuillForge Agents 命令 ═\n\n'
-      help += '你可以不用命令，直接用自然语言描述需求，Agent 会自动调用工具。\n\n'
-      help += '▸ 可用命令:\n'
-      help += '  /help          显示此帮助\n'
-      help += '  /clear         清除对话\n'
-      help += '  /context       显示当前上下文\n'
-      help += '  /retry         重新执行上一条指令\n\n'
-      help += '▸ 常用场景示例:\n'
-      help += '  「审阅当前章节，找出问题」\n'
-      help += '  「把主角改成 25 岁，更新角色描述」\n'
-      help += '  「在章节末尾追加一段战斗描写」\n'
-      help += '  「保存快照，然后把对话改得更自然」\n'
-      help += '  「给我写一个世界观设定，修仙世界，三界六道」'
+      const h = t
+      let help = `═ QuillForge Agents ═\n\n`
+      help += `${h('agents.helpIntro')}\n\n`
+      help += `▸ ${h('agents.helpCatBook')}\n`
+      help += `  「${h('agents.helpBook1')}」\n`
+      help += `  「${h('agents.helpBook2')}」\n`
+      help += `  「${h('agents.helpBook3')}」\n\n`
+      help += `▸ ${h('agents.helpCatOutline')}\n`
+      help += `  「${h('agents.helpOutline1')}」\n`
+      help += `  「${h('agents.helpOutline2')}」\n`
+      help += `  「${h('agents.helpOutline3')}」\n\n`
+      help += `▸ ${h('agents.helpCatChar')}\n`
+      help += `  「${h('agents.helpChar1')}」\n`
+      help += `  「${h('agents.helpChar2')}」\n`
+      help += `  「${h('agents.helpChar3')}」\n\n`
+      help += `▸ ${h('agents.helpCatChapter')}\n`
+      help += `  「${h('agents.helpChapter1')}」\n`
+      help += `  「${h('agents.helpChapter2')}」\n`
+      help += `  「${h('agents.helpChapter3')}」\n\n`
+      help += `▸ ${h('agents.helpCatReview')}\n`
+      help += `  「${h('agents.helpReview1')}」\n`
+      help += `  「${h('agents.helpReview2')}」\n\n`
+      help += `▸ ${h('agents.helpCatCmd')}\n`
+      help += `  ${h('agents.helpCmdLine')}`
       addMessage('assistant', help)
       break
     }
@@ -521,8 +558,8 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
 <style scoped>
 .agents-cli {
   border-top: 2px solid var(--color-border);
-  background: #0b1120;
-  color: #e2e8f0;
+  background: var(--color-cli-bg);
+  color: var(--color-cli-text);
   font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
   font-size: 0.8rem;
   display: flex;
@@ -538,14 +575,14 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
   cursor: ns-resize;
   z-index: 10;
 }
-.cli-resize-handle:hover { background: rgba(99,102,241,0.3); }
+.cli-resize-handle:hover { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
 .cli-resize-handle::before {
   content: '';
   position: absolute;
   top: 3px; left: 50%;
   transform: translateX(-50%);
   width: 40px; height: 2px;
-  background: #334155;
+  background: var(--color-cli-border-subtle);
   border-radius: 2px;
 }
 
@@ -555,8 +592,8 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
   align-items: center;
   justify-content: space-between;
   padding: 4px 10px;
-  background: #0f172a;
-  border-bottom: 1px solid #1e293b;
+  background: var(--color-cli-surface);
+  border-bottom: 1px solid var(--color-cli-border);
   flex-shrink: 0;
 }
 .cli-title {
@@ -565,22 +602,22 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
   gap: 6px;
   font-weight: 700;
   font-size: 0.72rem;
-  color: #818cf8;
+  color: var(--color-cli-accent);
   letter-spacing: 0.3px;
 }
 .cli-indicator {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--color-danger);
   flex-shrink: 0;
   transition: background 0.3s;
 }
-.cli-indicator.online { background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.5); }
+.cli-indicator.online { background: var(--color-success); box-shadow: 0 0 5px color-mix(in srgb, var(--color-success) 50%, transparent); }
 .cli-badge {
   font-size: 0.6rem;
   font-weight: 500;
-  background: #1e293b;
-  color: #64748b;
+  background: var(--color-cli-surface-raised);
+  color: var(--color-cli-text-dim);
   padding: 1px 5px;
   border-radius: 3px;
   max-width: 100px;
@@ -592,11 +629,11 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
 }
 .cli-header-actions { display: flex; gap: 2px; }
 .cli-btn {
-  background: transparent; border: none; color: #475569;
+  background: transparent; border: none; color: var(--color-cli-text-disabled);
   cursor: pointer; padding: 2px 5px; font-size: 0.75rem;
   border-radius: 3px; transition: all 0.15s; line-height: 1;
 }
-.cli-btn:hover { color: #94a3b8; background: rgba(255,255,255,0.06); }
+.cli-btn:hover { color: var(--color-cli-text-muted); background: color-mix(in srgb, var(--color-cli-text) 6%, transparent); }
 
 /* ── Body ── */
 .cli-body {
@@ -607,19 +644,19 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
   scroll-behavior: smooth;
 }
 .cli-body::-webkit-scrollbar { width: 4px; }
-.cli-body::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+.cli-body::-webkit-scrollbar-thumb { background: var(--color-cli-surface-raised); border-radius: 2px; }
 .cli-body::-webkit-scrollbar-track { background: transparent; }
 
 /* ── Welcome ── */
 .cli-welcome { padding: 14px 10px; text-align: center; }
-.welcome-logo { font-size: 1rem; font-weight: 700; color: #818cf8; margin-bottom: 4px; }
-.welcome-sub { font-size: 0.7rem; color: #64748b; margin-bottom: 10px; }
+.welcome-logo { font-size: 1rem; font-weight: 700; color: var(--color-cli-accent); margin-bottom: 4px; }
+.welcome-sub { font-size: 0.7rem; color: var(--color-cli-text-dim); margin-bottom: 10px; }
 .welcome-hint { display: flex; flex-direction: column; gap: 4px; align-items: center; margin-bottom: 8px; }
-.welcome-hint span { font-size: 0.7rem; color: #475569; margin-bottom: 2px; }
+.welcome-hint span { font-size: 0.7rem; color: var(--color-cli-text-disabled); margin-bottom: 2px; }
 .hint-example {
   font-size: 0.68rem;
-  color: #22c55e;
-  background: rgba(34,197,94,0.08);
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
   padding: 2px 10px;
   border-radius: 4px;
   max-width: 90%;
@@ -627,7 +664,7 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.welcome-help { font-size: 0.68rem; color: #6366f1; cursor: pointer; }
+.welcome-help { font-size: 0.68rem; color: var(--color-accent); cursor: pointer; }
 .welcome-help:hover { text-decoration: underline; }
 
 /* ── Messages ── */
@@ -644,87 +681,87 @@ watch(() => props.visible, (v) => { if (v) nextTick(() => inputRef.value?.focus(
 }
 
 /* User */
-.msg-label-user { color: #f59e0b; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; width: 16px; }
-.msg-text-user { color: #fbbf24; font-size: 0.78rem; }
+.msg-label-user { color: var(--color-warning); font-weight: 700; font-size: 0.82rem; flex-shrink: 0; width: 16px; }
+.msg-text-user { color: var(--color-warning); font-size: 0.78rem; }
 
 /* AI */
-.msg-label-ai { color: #818cf8; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; width: 16px; }
-.msg-text-ai { flex: 1; font-size: 0.78rem; color: #e2e8f0; min-width: 0; word-break: break-word; line-height: 1.6; }
-.msg-text-ai :deep(pre) { background: #0f172a; border: 1px solid #1e293b; border-radius: 4px; padding: 6px 8px; margin: 4px 0; overflow-x: auto; font-size: 0.72rem; color: #a5b4fc; }
-.msg-text-ai :deep(.ic) { background: #1e293b; padding: 1px 4px; border-radius: 3px; font-size: 0.74rem; color: #f472b6; }
-.msg-text-ai :deep(.h1) { font-size: 0.88rem; font-weight: 700; color: #f1f5f9; margin: 6px 0 3px; }
-.msg-text-ai :deep(.h2) { font-size: 0.82rem; font-weight: 700; color: #e2e8f0; margin: 5px 0 2px; }
-.msg-text-ai :deep(.h3) { font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin: 4px 0 2px; }
-.msg-text-ai :deep(blockquote) { border-left: 2px solid #6366f1; padding: 2px 10px; margin: 4px 0; color: #94a3b8; font-style: italic; }
-.msg-text-ai :deep(strong) { color: #f1f5f9; font-weight: 700; }
-.msg-text-ai :deep(em) { color: #cbd5e1; font-style: italic; }
+.msg-label-ai { color: var(--color-cli-accent); font-weight: 700; font-size: 0.82rem; flex-shrink: 0; width: 16px; }
+.msg-text-ai { flex: 1; font-size: 0.78rem; color: var(--color-cli-text); min-width: 0; word-break: break-word; line-height: 1.6; }
+.msg-text-ai :deep(pre) { background: var(--color-cli-surface); border: 1px solid var(--color-cli-border); border-radius: 4px; padding: 6px 8px; margin: 4px 0; overflow-x: auto; font-size: 0.72rem; color: var(--color-cli-accent); }
+.msg-text-ai :deep(.ic) { background: var(--color-cli-surface-raised); padding: 1px 4px; border-radius: 3px; font-size: 0.74rem; color: var(--color-accent); }
+.msg-text-ai :deep(.h1) { font-size: 0.88rem; font-weight: 700; color: var(--color-cli-text); margin: 6px 0 3px; }
+.msg-text-ai :deep(.h2) { font-size: 0.82rem; font-weight: 700; color: var(--color-cli-text); margin: 5px 0 2px; }
+.msg-text-ai :deep(.h3) { font-size: 0.78rem; font-weight: 600; color: var(--color-cli-text-muted); margin: 4px 0 2px; }
+.msg-text-ai :deep(blockquote) { border-left: 2px solid var(--color-accent); padding: 2px 10px; margin: 4px 0; color: var(--color-cli-text-muted); font-style: italic; }
+.msg-text-ai :deep(strong) { color: var(--color-cli-text); font-weight: 700; }
+.msg-text-ai :deep(em) { color: var(--color-cli-text-muted); font-style: italic; }
 
 /* Tool call */
-.msg-label-tool { color: #22c55e; font-size: 0.75rem; flex-shrink: 0; width: 16px; text-align: center; }
+.msg-label-tool { color: var(--color-success); font-size: 0.75rem; flex-shrink: 0; width: 16px; text-align: center; }
 .msg-body-tool { flex: 1; font-size: 0.72rem; display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
-.tool-name { color: #22c55e; font-weight: 600; }
-.tool-args { color: #64748b; font-size: 0.68rem; }
+.tool-name { color: var(--color-success); font-weight: 600; }
+.tool-args { color: var(--color-cli-text-dim); font-size: 0.68rem; }
 .tool-status { font-size: 0.65rem; }
-.tool-status.running { color: #f59e0b; animation: pulse 1.2s ease-in-out infinite; }
-.label-done { color: #22c55e; }
+.tool-status.running { color: var(--color-warning); animation: pulse 1.2s ease-in-out infinite; }
+.label-done { color: var(--color-success); }
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-.tool-result-text { color: #94a3b8; font-size: 0.68rem; margin: 0; white-space: pre-wrap; }
-.text-error { color: #f87171; }
-.label-error { color: #ef4444; }
+.tool-result-text { color: var(--color-cli-text-muted); font-size: 0.68rem; margin: 0; white-space: pre-wrap; }
+.text-error { color: var(--color-danger); }
+.label-error { color: var(--color-danger); }
 
 /* Error */
-.msg-label-error { color: #ef4444; font-weight: 700; flex-shrink: 0; width: 16px; }
-.msg-text-error { color: #f87171; font-size: 0.78rem; }
+.msg-label-error { color: var(--color-danger); font-weight: 700; flex-shrink: 0; width: 16px; }
+.msg-text-error { color: var(--color-danger); font-size: 0.78rem; }
 
 .msg-actions { flex-shrink: 0; opacity: 0; transition: opacity 0.15s; padding-top: 2px; }
 .cli-msg:hover .msg-actions { opacity: 1; }
-.msg-btn { background: transparent; border: none; color: #475569; cursor: pointer; font-size: 0.68rem; padding: 2px 4px; border-radius: 3px; }
-.msg-btn:hover { color: #94a3b8; background: rgba(255,255,255,0.06); }
+.msg-btn { background: transparent; border: none; color: var(--color-cli-text-disabled); cursor: pointer; font-size: 0.68rem; padding: 2px 4px; border-radius: 3px; }
+.msg-btn:hover { color: var(--color-cli-text-muted); background: color-mix(in srgb, var(--color-cli-text) 6%, transparent); }
 
 /* ── Thinking indicator ── */
 .agent-thinking { padding: 6px 22px; }
 .thinking-bar { display: flex; align-items: center; gap: 4px; }
-.think-dot { width: 5px; height: 5px; border-radius: 50%; background: #818cf8; animation: thinkPulse 1.2s ease-in-out infinite; }
+.think-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-cli-accent); animation: thinkPulse 1.2s ease-in-out infinite; }
 .think-dot:nth-child(2) { animation-delay: 0.2s; }
 .think-dot:nth-child(3) { animation-delay: 0.4s; }
-.think-text { font-size: 0.65rem; color: #64748b; margin-left: 4px; }
+.think-text { font-size: 0.65rem; color: var(--color-cli-text-dim); margin-left: 4px; }
 @keyframes thinkPulse { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
 
 /* ── Footer ── */
-.cli-footer { flex-shrink: 0; border-top: 1px solid #1e293b; }
+.cli-footer { flex-shrink: 0; border-top: 1px solid var(--color-cli-border); }
 .cli-ctxbar {
   display: flex; align-items: center; gap: 4px;
-  padding: 2px 10px; background: #0f172a;
-  font-size: 0.58rem; color: #475569;
-  border-bottom: 1px solid #1e293b;
+  padding: 2px 10px; background: var(--color-cli-surface);
+  font-size: 0.58rem; color: var(--color-cli-text-disabled);
+  border-bottom: 1px solid var(--color-cli-border);
 }
 .ctx-book { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctx-chapter { color: #6366f1; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctx-sep { color: #334155; }
+.ctx-chapter { color: var(--color-accent); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-sep { color: var(--color-cli-border-subtle); }
 .cli-input-row {
   display: flex; align-items: flex-end; gap: 6px;
-  padding: 6px 10px; background: #0f172a;
+  padding: 6px 10px; background: var(--color-cli-surface);
 }
 .cli-input {
   flex: 1;
-  background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+  background: var(--color-cli-surface-raised); border: 1px solid var(--color-cli-border-subtle); color: var(--color-cli-text);
   font-family: inherit; font-size: 0.78rem;
   padding: 7px 10px; border-radius: 6px;
   outline: none; resize: none; line-height: 1.5;
   min-height: 32px; max-height: 120px;
 }
-.cli-input::placeholder { color: #475569; }
-.cli-input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+.cli-input::placeholder { color: var(--color-cli-text-disabled); }
+.cli-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 15%, transparent); }
 .cli-input:disabled { opacity: 0.35; }
 .cli-send {
-  background: #6366f1; color: #fff; border: none;
+  background: var(--color-accent); color: var(--color-text-on-accent); border: none;
   width: 30px; height: 30px; border-radius: 6px;
   cursor: pointer; font-size: 0.9rem;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; transition: background 0.15s;
 }
-.cli-send:hover:not(:disabled) { background: #4f46e5; }
+.cli-send:hover:not(:disabled) { background: var(--color-accent-hover); }
 .cli-send:disabled { opacity: 0.35; cursor: not-allowed; }
-.cli-stop { background: #ef4444; font-size: 0.8rem; }
-.cli-stop:hover:not(:disabled) { background: #dc2626; }
+.cli-stop { background: var(--color-danger); font-size: 0.8rem; }
+.cli-stop:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger) 75%, black); }
 </style>

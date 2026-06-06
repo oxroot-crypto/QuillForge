@@ -123,3 +123,26 @@ export interface AiActionConfig {
   icon: string
 }
 
+/** 模态对话框交互——resolve 回调，用于 prompt / confirm / alert 三种模式 */
+export interface ModalAction {
+  resolve: (value: string | boolean) => void
+}
+
+/** 提示词模板编辑态——tags 由数组展开为逗号分隔字符串方便编辑 */
+export interface EditingTemplate {
+  id: string
+  name: string
+  description: string
+  action: string
+  systemPrompt: string
+  tagsStr: string
+}
+
+/** AI 一致性检查发现的问题——角色名、问题类型、严重程度、描述 */
+export interface ConsistencyIssue {
+  character: string
+  type: string
+  severity: string
+  desc: string
+}
+

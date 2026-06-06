@@ -256,7 +256,7 @@ function roleLabel(role: string): string {
   transition: all var(--transition-fast);
 }
 .btn-delete-char:hover {
-  color: #fff;
+  color: var(--color-text-on-accent);
   background: var(--color-danger);
 }
 
@@ -380,7 +380,7 @@ function roleLabel(role: string): string {
   padding: 4px 10px;
   border: none;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-text-on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.74rem;

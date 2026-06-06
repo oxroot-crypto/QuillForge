@@ -122,6 +122,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTemplateStore } from '@/stores/templates'
 import type { PromptTemplate } from '@/stores/templates'
+import type { EditingTemplate } from '@/types'
 
 defineEmits<{ close: [] }>()
 
@@ -133,15 +134,6 @@ const showImport = ref(false)
 const importJson = ref('')
 const importResult = ref('')
 const editing = ref(false)
-
-interface EditingTemplate {
-  id: string
-  name: string
-  description: string
-  action: string
-  systemPrompt: string
-  tagsStr: string
-}
 
 const editingTemplate = ref<EditingTemplate>({
   id: '',
@@ -156,8 +148,8 @@ const filteredTemplates = computed(() => {
   const q = searchQuery.value.toLowerCase()
   const currentLocale = locale.value as string
   return templateStore.allTemplates.filter((t) => {
-    // Show matching locale or zh-CN
-    if (t.locale !== currentLocale && t.locale !== 'zh-CN') return false
+    // 内置模板只显示当前语言版本；自定义模板显示当前语言 + zh-CN 回退
+    if (t.builtIn ? t.locale !== currentLocale : (t.locale !== currentLocale && t.locale !== 'zh-CN')) return false
     if (!q) return true
     return (
       t.name.toLowerCase().includes(q) ||
@@ -289,7 +281,7 @@ function doImport() {
   transition: all var(--transition-fast);
 }
 .btn-sm:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.btn-primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+.btn-primary { background: var(--color-accent); color: var(--color-text-on-accent); border-color: var(--color-accent); }
 .btn-primary:hover { opacity: 0.9; }
 .btn-danger:hover { border-color: var(--color-danger); color: var(--color-danger); }
 

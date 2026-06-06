@@ -18,15 +18,15 @@ struct SnapshotMeta {
     word_count: usize,
 }
 
-fn history_dir(app_handle: &tauri::AppHandle, book_id: &str, chapter_id: &str) -> std::path::PathBuf {
+fn history_dir(app_handle: &tauri::AppHandle, book_id: &str, chapter_id: &str) -> Result<std::path::PathBuf, String> {
     let base = app_handle
         .path()
         .app_data_dir()
-        .expect("App data dir should be accessible");
-    base.join("books")
+        .map_err(|e| format!("获取应用数据目录失败: {e}"))?;
+    Ok(base.join("books")
         .join(book_id)
         .join("history")
-        .join(chapter_id)
+        .join(chapter_id))
 }
 
 fn count_words(html: &str) -> usize {
@@ -63,7 +63,7 @@ pub fn save_snapshot(
     content: String,
     label: Option<String>,
 ) -> Result<String, String> {
-    let dir = history_dir(&app_handle, &book_id, &chapter_id);
+    let dir = history_dir(&app_handle, &book_id, &chapter_id)?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("Create history dir: {e}"))?;
 
     let timestamp = Utc::now().to_rfc3339();
@@ -99,7 +99,7 @@ pub fn list_snapshots(
     book_id: String,
     chapter_id: String,
 ) -> Result<Vec<SnapshotInfo>, String> {
-    let dir = history_dir(&app_handle, &book_id, &chapter_id);
+    let dir = history_dir(&app_handle, &book_id, &chapter_id)?;
     if !dir.exists() {
         return Ok(Vec::new());
     }
@@ -138,7 +138,7 @@ pub fn get_snapshot_content(
     chapter_id: String,
     timestamp: String,
 ) -> Result<String, String> {
-    let dir = history_dir(&app_handle, &book_id, &chapter_id);
+    let dir = history_dir(&app_handle, &book_id, &chapter_id)?;
     let safe_name = timestamp.replace(':', "_").replace('.', "_");
     let path = dir.join(format!("{safe_name}.json"));
 

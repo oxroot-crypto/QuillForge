@@ -1,18 +1,20 @@
+// Agent 执行引擎——负责与 LLM 的多轮工具调用循环。
+// 解析 TOOL: / FINAL: 前缀，校验工具调用完整性（防 AI 假写），最多 15 轮迭代。
 import { invoke } from '@tauri-apps/api/core'
 import type { ModelConfig } from '@/types'
 import type { AgentTool, AgentContext } from './types'
 
-const MAX_ITERATIONS = 15
-
 /**
- * Parse tool call from AI response.
+ * 从 AI 响应文本中解析工具调用。
  *
- * Two formats:
- * 1) Single-line: TOOL: tool_name | arg1=val1 | arg2=val2
- * 2) Multi-line content: TOOL: tool_name | arg1=val1 | content
- *    (full chapter text here, supports any length)
+ * 支持两种格式:
+ * 1) 单行: TOOL: 工具名 | 参数1=值1 | 参数2=值2
+ * 2) 多行正文: TOOL: 工具名 | 参数1=值1 | content
+ *    首行之后的内容为正文，截断于第一个 FINAL: 或 TOOL: 行（防 AI 在正文后夹带注释）
+ *
+ * @returns 解析出的工具名和参数键值对，若不是工具调用则返回 null
  */
-function parseToolCall(text: string): { name: string; args: Record<string, any> } | null {
+function parseToolCall(text: string): { name: string; args: Record<string, string> } | null {
   const trimmed = text.trimStart()
 
   const toolPrefix = /^TOOL:\s*(\w+)\s*(?:\|(.*))?$/im
@@ -21,7 +23,7 @@ function parseToolCall(text: string): { name: string; args: Record<string, any> 
 
   const name = match[1].toLowerCase()
   const argText = match[2]?.trim() || ''
-  const args: Record<string, any> = {}
+  const args: Record<string, string> = {}
 
   // Check if multi-line content mode: last token is bare "content"
   const tokens = argText.split('|').map(s => s.trim())
@@ -104,7 +106,8 @@ TOOL: edit_chapter | chapter=章节名 | content
 注意：| content 之后只能放小说正文。不要写你的分析、不要写后续计划、不要写 FINAL、不要写任何注释。写进去的全都会变成小说内容的一部分。
 
 ========== 规则 ==========
-1. 需要查看内容时，先调用 read_chapter 或 read_book_info
+1. **没有书时先创建书**：如果 read_book_info 返回"没有打开的书籍"，先调用 create_book 创建一本新书，再继续后续操作（设世界观、加角色、建章节）。
+1b. 需要查看内容时，先调用 read_chapter 或 read_book_info
 2. edit_chapter 的 content 用纯文本，不要 HTML
 3. 不知道角色ID时，先 read_book_info 查看
 4. 重要：写章节时，必须一次性把全部正文传入 edit_chapter 的 content。不要分多次 append，不要在回复里假装写了但实际没调工具。一次 edit_chapter 就要包含完整章节内容。
@@ -113,6 +116,9 @@ TOOL: edit_chapter | chapter=章节名 | content
 7. 不要重复创建同名章节。create_chapter 成功后如果收到"未调用写入工具"的错误，说明需要 edit_chapter 写入内容，不是再创建一次。
 8. **创建章节 ≠ 写入内容**：create_chapter 只创建空章节，不会写入任何正文。你必须再调用 edit_chapter 来写入实际内容。如果你只调用了 create_chapter 就说"已完成"或"已写出"，会被拦截。
 9. **快照自动保存**：edit_chapter 和 append_chapter 在修改非空章节时会自动保存快照备份，你不需要手动调用 save_snapshot。
+10. **每个角色单独创建**：upsert_character 每次只操作一个角色。如果要创建 3 个角色，必须分别调用 3 次。不要在 FINAL 里描述角色就说"已创建"——必须实际调用工具。
+11. **批量建章用 create_chapter + outline 参数**：一次调用同时创建章节和对应大纲。创建空章用于大纲是允许的（不传 content），不需要再调 edit_chapter。
+12. **写章前必须读大纲**：调用 edit_chapter / append_chapter 之前先 read_book_info 查看目标章节的大纲。生成的内容必须严格遵循大纲中的剧情要点、伏笔、冲突和角色互动要求。
 
 ========== 书籍上下文 ==========
 书名: ${ctx.bookTitle || '无'} | 章节: ${ctx.chapterCount}章 / ${ctx.wordCount}字 | 角色: ${ctx.charCount}个
@@ -123,7 +129,7 @@ ${ctx.characters.length > 0 ? `\n【角色】\n${ctx.characters.slice(0, 15).map
   const desc = (c.description || '').slice(0, 80)
   return `  [${roleLabel}]${c.name}${desc ? ': ' + desc : ''}`
 }).join('\n')}${ctx.characters.length > 15 ? `\n  ...及其他${ctx.characters.length - 15}位角色` : ''}` : ''}
-${ctx.outline ? `\n【大纲】${ctx.outline.slice(0, 800)}${ctx.outline.length > 800 ? '...' : ''}` : ''}
+${ctx.outline ? `\n【全量大纲——写章时必须遵循】\n${ctx.outline}` : '（暂无大纲，可先用 create_chapter + create_outline 创建）'}
 
 ========== 可用工具 ==========
 
@@ -134,8 +140,26 @@ ${toolDesc}
 用户：帮我创建一个反派角色
 TOOL: read_book_info
 [等待工具结果...]
-TOOL: add_character | name=血影魔尊 | role=antagonist | description=千年前被封印的魔界至尊，如今破封而出，誓要统治三界。
+TOOL: upsert_character | name=血影魔尊 | role=antagonist | description=千年前被封印的魔界至尊，如今破封而出，誓要统治三界。
 FINAL: 已创建反派角色「血影魔尊」！
+
+用户：创建前期章节大纲
+TOOL: create_chapter | title=第一章 山村少年 | outline=叶青云出场，展现山村贫困生活与坚韧性格，发现山洞中的上古残卷，爷爷临终告知身世之谜。
+[等待工具结果...]
+TOOL: create_chapter | title=第二章 青阳宗入门 | outline=叶青云带着残卷前往青阳宗，入门测试因废灵根被嘲笑，意外展现锻体天赋，被外门长老破格收徒。
+[等待工具结果...]
+TOOL: create_chapter | title=第三章 初遇同门 | outline=外门修炼，结识赵无痕（豪爽兄弟）、苏挽月（冰山师姐），卷入宗门派系争斗，残卷秘密首次暴露。
+[等待工具结果...]
+FINAL: 已创建3章大纲：第一章 山村少年、第二章 青阳宗入门、第三章 初遇同门。
+
+用户：帮我设计前期角色，要主角、反派、导师三个
+TOOL: upsert_character | name=林尘 | role=protagonist | description=21岁大学生，坚毅机智，获万界珠奇遇。
+[等待工具结果...]
+TOOL: upsert_character | name=血影公子 | role=antagonist | description=魔道少主，残忍傲慢，与主角争夺灵药结仇。
+[等待工具结果...]
+TOOL: upsert_character | name=青云长老 | role=supporting | description=慈云宗守阁长老，温和慈祥，暗中庇护主角。
+[等待工具结果...]
+FINAL: 已创建3位角色：林尘（主角）、血影公子（反派）、青云长老（导师）。
 
 用户：帮我写第一章，2000字
 TOOL: create_chapter | title=第一章 初入异界
@@ -147,18 +171,48 @@ FINAL: 已完成第一章「初入异界」，共约2000字。
 
 ========== 记住 ==========
 - 第一行必须是 TOOL: 或 FINAL:，没有例外。
+- 没有书时先 create_book。只有 read_book_info 返回"没有打开的书籍"时才需要创建——如果已有书，直接操作即可。
+- create_book 成功后会生成一个空章节，要继续设世界观/加角色/写内容。
 - 写章节的顺序：先 create_chapter，再 edit_chapter。不要反着来。
 - edit_chapter 的 chapter 参数指定的章节标题必须已存在于书籍中。
 - edit_chapter 和 append_chapter 会自动保存快照，无需手动调用 save_snapshot。`
 }
 
+/** Agent 最终回复——由回调传递给 UI 层展示 */
+export interface AgentReply {
+  role: 'assistant'
+  content: string
+}
+
+/** 工具调用快照——Agent 通知 UI 层当前正在执行哪个工具 */
+export interface AgentToolCall {
+  name: string
+  args: Record<string, string>
+}
+
+/**
+ * 执行 Agent 工具调用循环。
+ * 持续与 LLM 交互直到收到 FINAL: 响应或达到最大迭代次数（15 轮）。
+ * 内置工具调用校验：拦截"声称完成但未实际调工具"的 AI 行为。
+ *
+ * @param userMessage - 用户输入的自然语言需求
+ * @param tools - 可用工具列表
+ * @param ctx - 当前书籍上下文（注入 system prompt）
+ * @param config - LLM 模型配置
+ * @param onMessage - 收到 FINAL 回复时回调
+ * @param onToolCall - 每次工具调用开始时回调
+ * @param onToolResult - 每次工具执行完成后回调
+ * @param onDone - Agent 结束时回调（无论成功失败）
+ * @param onError - 出错时回调
+ * @param isCancelled - 可选取消信号，返回 true 时 Agent 立即退出
+ */
 export async function runAgent(
   userMessage: string,
   tools: AgentTool[],
   ctx: AgentContext,
   config: ModelConfig,
-  onMessage: (msg: any) => void,
-  onToolCall: (tc: { name: string; args: Record<string, any> }) => void,
+  onMessage: (msg: AgentReply) => void,
+  onToolCall: (tc: AgentToolCall) => void,
   onToolResult: (result: string) => void,
   onDone: () => void,
   onError: (err: string) => void,
@@ -179,7 +233,7 @@ export async function runAgent(
     system_prompt: systemPrompt,
   }
 
-  const READ_ONLY_TOOLS = new Set(['read_chapter', 'read_chapters_list', 'read_book_info', 'read_selection', 'read_stats'])
+  const READ_ONLY_TOOLS = new Set(['read_chapter', 'read_book_info'])
 
   // Tools that actually modify content (not just preparatory ones like save_snapshot)
   const CONTENT_WRITE_TOOLS = new Set(['edit_chapter', 'append_chapter'])
@@ -194,8 +248,10 @@ export async function runAgent(
   let lastCreatedChapterTitle = ''
   // Track actual word count from last write operation
   let actualWrittenWords = 0
+  // Count successful tool calls per tool name — used to validate FINAL claims
+  const toolCallCounts: Record<string, number> = {}
 
-  while (iterations < MAX_ITERATIONS) {
+  while (true) {
     iterations++
     if (isCancelled?.()) {
       onDone()
@@ -252,6 +308,7 @@ export async function runAgent(
           // Only mark tool as successful if it returned without error
           const isError = toolResult.startsWith('错误：') || toolResult.startsWith('❌')
           if (!isError) {
+            toolCallCounts[parsed.name] = (toolCallCounts[parsed.name] || 0) + 1
             // Track ANY non-read-only tool success
             if (!READ_ONLY_TOOLS.has(parsed.name)) {
               anyToolSucceeded = true
@@ -272,8 +329,8 @@ export async function runAgent(
             // create_chapter with content is not reliable — AI may pass garbage.
             // Only edit_chapter/append_chapter count as real content writing.
           }
-        } catch (e: any) {
-          const errMsg = `执行错误: ${e?.message || e}`
+        } catch (e: unknown) {
+          const errMsg = `执行错误: ${(e as Error)?.message || String(e)}`
           conv.push({ role: 'tool', content: errMsg })
           onToolResult(`❌ ${errMsg}`)
         }
@@ -293,23 +350,56 @@ export async function runAgent(
             onToolResult(`❌ 校验失败：声称「${finalContent.slice(0, 30)}」但未调用任何工具，已要求重试`)
             continue
           }
-          // If a chapter was created but never written to, any FINAL mentioning
-          // content/completion/字数 is a lie — AI must call edit_chapter first.
-          if (chapterCreatedWithoutWrite && /字|内容|第[^创]/.test(finalContent)) {
+          // If a chapter was created but never written to, AND the FINAL claims to
+          // have written content (mentions word count or "wrote"), it's a lie.
+          // Creating empty chapters for outlining/setup is fine.
+          if (chapterCreatedWithoutWrite && /字数|写了|已写完|已完成第[^创]/.test(finalContent)) {
             const chName = lastCreatedChapterTitle || '章节名'
-            const hint = `你创建了「${chName}」但没有写入任何内容。不要再创建新章节了！直接用 edit_chapter 写入完整正文。`
+            const hint = `你创建了「${chName}」但声称写完了内容却没有调用 edit_chapter。请用 edit_chapter 写入正文。`
             conv.push({ role: 'assistant', content: cleaned })
             conv.push({ role: 'tool', content: `错误：${hint}\nTOOL: edit_chapter | chapter=${chName} | content\n（完整正文，不要加 FINAL 或解释）` })
-            onToolResult(`❌ 校验失败：创建了「${chName}」但未调用 edit_chapter，已要求重试`)
+            onToolResult(`❌ 校验失败：创建了「${chName}」但声称写了内容却未调 edit_chapter，已要求重试`)
             continue
           }
-          // Content modification claim (without preceding create_chapter) requires write tools
-          if (!contentWritten && /第[一二三四五六七八九十\d零〇百千万]+[章节卷]/.test(finalContent) && /完\s*成|创\s*作|已.*(?:写|翻|改|替|填|生|修)/i.test(finalContent)) {
-            const hint = '你声称已修改内容，但并未调用 edit_chapter 或 append_chapter 工具。必须实际调用写入工具！'
+          // Content modification claim requires write tools — but ONLY if no other tools
+          // succeeded. If the user asked for book settings/characters and those tools
+          // ran fine, let FINAL through even if chapter content wasn't written.
+          if (!contentWritten && !anyToolSucceeded
+            && /第[一二三四五六七八九十\d零〇百千万]+[章节卷]/.test(finalContent)
+            && /完\s*成|创\s*作|已.*(?:写|翻|改|替|填|生|修)/i.test(finalContent)) {
+            const hint = '你声称已修改章节内容，但并未调用 edit_chapter 或 append_chapter 工具。必须实际调用写入工具！'
             conv.push({ role: 'assistant', content: cleaned })
             conv.push({ role: 'tool', content: `错误：${hint}\nTOOL: edit_chapter | chapter=${lastCreatedChapterTitle || '章节名'} | content\n（完整正文，不要加 FINAL 或解释）` })
             onToolResult(`❌ 校验失败：声称「${finalContent.slice(0, 30)}」但未写入内容，已要求重试`)
             continue
+          }
+
+          // Validate claimed chapter count against actual create_chapter calls
+          const chCountMatch = finalContent.match(/(\d+)\s*章/)
+          if (chCountMatch) {
+            const claimed = parseInt(chCountMatch[1], 10)
+            const created = toolCallCounts['create_chapter'] || 0
+            if (claimed > created && claimed > 1) {
+              const hint = `你声称创建了${claimed}章，但实际只调用了${created}次 create_chapter。每一章都必须单独调用！`
+              conv.push({ role: 'assistant', content: cleaned })
+              conv.push({ role: 'tool', content: `错误：${hint}` })
+              onToolResult(`❌ 校验失败：声称${claimed}章但只建了${created}章，已要求重试`)
+              continue
+            }
+          }
+
+          // Validate claimed character count against actual upsert_character calls
+          const charCountMatch = finalContent.match(/(\d+)\s*[位个名]\s*角色/)
+          if (charCountMatch && !chapterCreatedWithoutWrite) {
+            const claimed = parseInt(charCountMatch[1], 10)
+            const added = toolCallCounts['upsert_character'] || 0
+            if (claimed > added) {
+              const hint = `你声称创建了${claimed}位角色，但实际只调用了${added}次 upsert_character。每个角色都必须单独调用 upsert_character 创建！`
+              conv.push({ role: 'assistant', content: cleaned })
+              conv.push({ role: 'tool', content: `错误：${hint}` })
+              onToolResult(`❌ 校验失败：声称${claimed}位角色但只创建了${added}位，已要求重试`)
+              continue
+            }
           }
 
           onMessage({ role: 'assistant', content: finalContent || cleaned })
@@ -322,13 +412,13 @@ export async function runAgent(
         onDone()
         return
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       onError(e?.toString() || 'AI 请求失败')
       onDone()
       return
     }
   }
 
-  onMessage({ role: 'assistant', content: `⚠️ 已达到最大迭代次数(${MAX_ITERATIONS})` })
+  onMessage({ role: 'assistant', content: '⚠️ 循环终止' })
   onDone()
 }
