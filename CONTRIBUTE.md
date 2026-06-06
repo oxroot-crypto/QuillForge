@@ -54,19 +54,12 @@ import { useBookStore } from '../../stores/book'
 
 <中文详细说明（可选）>
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Co-Authored-By: Claude Code <claude@anthropic.com>
 ```
 
 type: `feat` | `fix` | `refactor` | `style` | `docs` | `chore` | `perf`
 
 scope: `ai` | `editor` | `sidebar` | `settings` | `storage` | `search` | `spell` | `i18n` | `theme` | `tauri`
-
-### Co-Authored-By
-
-任何由 Claude Code 生成或协助编写的代码，提交时必须添加共作者署名：
-```
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-```
 
 ### 分支策略
 
