@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/128x128.png" alt="QuillForge Icon" width="128" height="128" style="border-radius: 24px;" />
+  <img src="src-tauri/icons/icon.svg" alt="QuillForge Icon" width="128" height="128" style="border-radius: 24px;" />
 </p>
 
 <h1 align="center">QuillForge</h1>
